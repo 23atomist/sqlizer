@@ -13,14 +13,13 @@ Sqlizer is a software based music synthesizer that organizes its components
 into *tables*.  There is a table of oscillators, a table of voices, and a
 table of instrument notes.  
 
+Components are defined in the program by a C-style data structure.  An array
+of these structures is a table.
+
 Each row in a table is an instance of that component and each column is a
 parameter that describes the component.  For example, the table of
 oscillators has columns that specify the frequency and waveform to use
 for that oscillator.
-
-Components are defined in the program by a C-style data structure.  An array
-of these structures is the table.  The members of the structure are the
-parameters (columns) that describe the component.
 
 Structured Query Language, SQL, is the standard way client programs read
 and set values in the tables of a database.  Sqlizer uses the librta library
@@ -49,12 +48,23 @@ debugging the synthesizer daemon almost trivial.
 
 ![](sqlizerarch.svg)
 
+## Tables
+We anticipate using several tables in the design.  These include:
+- Oscillators : with frequency, waveform, vibrato, and glide
+- Voices : with two oscillators, mixer, gain, filter, and amplitude envelope
+- Notes : oscillator and voice values sorted by musical instrument and note
+
+Still to be determined is how much to include in the voices table.  For
+example, maybe the oscillators should be part of the voices and in a stand-alone
+table.  Other tables might include one for multiple outputs and one for
+audio effects.
+
 ## Goals
-The near term goal is to built the synthesizer daemon, and a sequencer and
-MIDI interface for it.
+The near term goal is to built the synthesizer daemon along with a sequencer
+and MIDI interface for it.
 
 A possible longer term goal is to convert from floating point to integer
-arithmetic and then to Verilog for use on an FPGA.
+arithmetic and then convert to Verilog for use on an FPGA.
 
 ## Status
 The oscillators are working and have the following parameters:
@@ -62,7 +72,7 @@ The oscillators are working and have the following parameters:
 - Waveform (sine, square, triangle, noise)
 - Waveform symmetry
 - Vibrato (index of controlling oscillator)
-- Vibrato depth
+- Vibrato frequency
 - Glide target frequency
 - Glide duration in milliseconds
 - Hard sync (index of controlling oscillator)

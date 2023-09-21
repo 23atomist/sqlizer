@@ -33,27 +33,29 @@ oscillator #0 it routed to standard out of the program.
 Test the program by starting it with output piped to aplay
 so you can hear the output.
 ```
-  ./sqlizer-daemon | aplay -c 1 -f S16_BE -r 44100
+  ./sqlizer-daemon | aplay -c 1 -f S16_BE -r 44100 &
 ```
 
 Use the Postgres Bash client to test the oscillators table.
 ```
   psql -h localhost -p 8889
 ```
-You should see a introduction message and hash mark as a prompt.
+You should see an introductory message and hash mark as a prompt.
 Enter the following, one at a time, at the prompt.  You should
 be able to cut and paste these commands.
 ```
-  UPDATE oscillators SET otype=1 WHERE idx=0;   # sine
-  UPDATE oscillators SET otype=2 WHERE idx=0;   # square
-  UPDATE oscillators SET otype=3 WHERE idx=0;   # triangle
-  UPDATE oscillators SET otype=4 WHERE idx=0;   # noise
+  UPDATE oscillators SET otype=1 WHERE idx=0;   -- sine
+  UPDATE oscillators SET otype=2 WHERE idx=0;   -- square
+  UPDATE oscillators SET otype=3 WHERE idx=0;   -- triangle
+  UPDATE oscillators SET otype=4 WHERE idx=0;   -- noise
   UPDATE oscillators SET otype=3, freq=220 WHERE idx=0;
   UPDATE oscillators SET glidefreq=880, glidems=4000 WHERE idx=0;
-  SELECT * FROM oscillators WHERE idx=0;
   UPDATE oscillators SET otype=3, freq=0.5 WHERE idx=1;
-  UPDATE oscillators SET vibratoosc=1, vibratodepth=0.005 WHERE idx=0;
+  UPDATE oscillators SET vibratoosc=1, vibratofreq=880 WHERE idx=0;
   UPDATE oscillators SET symmetry=0.01, phaseoffset=0.25 WHERE idx=1;
-  UPDATE oscillators SET otype=1 WHERE idx=0;   # off
+  UPDATE oscillators SET otype=0 WHERE idx=0;   -- off
+  \pset pager off -- Turn off the psql pager to make output easier to see
+  SELECT * FROM oscillators WHERE idx=0;
+  SELECT name, help FROM rta_columns WHERE table=oscillators;
 ```
 

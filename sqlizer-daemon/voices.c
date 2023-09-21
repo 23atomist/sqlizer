@@ -92,6 +92,8 @@ void init_synth()
         oscillators[i].glidecount = 0;
         oscillators[i].glidestep = 0.0;
         oscillators[i].vibratoosc = -1;
+        oscillators[i].vibratofreq = 0.0;
+        oscillators[i].vibratostep = 0.0;
         oscillators[i].hardsyncosc = -1;
         oscillators[i].sync = 0;
         oscillators[i].oscout = 0.0;
@@ -188,17 +190,18 @@ int  val;
     float    symmetry;         // Symmetry (0 to 1) for sine, square, triangle
     float    phaseoffset;      // Added to accumulator before computing waveform value
     int      vibratoosc;       // Index of oscillator that controls vibrato
-    float    vibratodepth;     // Added/subtracted to phasestep based on vibratoosc
+    float    vibratofreq;      // Added to phasestep based on vibratoosc (+0 to +1)
     float    glidefreq;        // Target frequency after a glide
     int      glidems;          // Number of milliseconds to take to get to glidefreq
     int      hardsyncosc;      // Index of osc that controls hardsync.  ==-1 if off
     // The following are not brought out to the UI
-    float    phasestep;        // added to phase accumulator each step
+    float    phasestep;        // Added to phase accumulator each step
+    float    vibratostep;      // Phase step corresponding to vibratofreq
     int      glidecount;       // Num samples to apply glidestep, decrement each sample
     float    glidestep;        // Add this to phasestep if glidecount is not zero
-    int      sync;             // ==1 for one sample as output crosses zero.
-    float    oscout;           // output value of oscillator in range of -1 to +1
-*
+    int      sync;             // ==1 for one sample as output crosses zero. 
+    float    oscout;           // Output value of oscillator in range of -1 to +1
+ *
  * Input:
  * Output:
  * Effects:      Oscillator output
@@ -233,11 +236,12 @@ void do_oscillator(
             posc->glidems = 0;
     }
 
-    // Apply vibrato if a valid osc is specified
+    // Apply vibrato if a valid osc is specified.  Map the vibrato oscillator
+    // output to the range 0-1 and scale the vibrato step by this amount
     phstep = posc->phasestep;
     if ((posc->vibratoosc >= 0)
      && (posc->vibratoosc < OSCILLATOR_COUNT)) {
-        phstep += oscillators[posc->vibratoosc].oscout * posc->vibratodepth;
+        phstep += (0.5 + (oscillators[posc->vibratoosc].oscout / 2)) * posc->vibratostep;
     }
 
     // Adjust phase step based on symmetry

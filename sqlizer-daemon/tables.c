@@ -43,6 +43,7 @@ static int get_freq(char *, char *, char *, void *, int);
 static int set_glidefreq(char *, char *, char *, void *, int,  void *);
 static int set_glidems(char *, char *, char *, void *, int,  void *);
 static int set_symmetry(char *, char *, char *, void *, int,  void *);
+static int set_vibratofreq(char *, char *, char *, void *, int,  void *);
 
 /*INDENT-OFF*/
 /***************************************************************
@@ -152,16 +153,16 @@ RTA_COLDEF osccols[] = {
         "The index of the oscillator that controls vibrato"},
     {
         "oscillators",      /* the table name */
-        "vibratodepth",     /* the column name */
+        "vibratofreq",      /* the column name */
         RTA_FLOAT,          /* it is a float */
         sizeof(float),      /* number of bytes */
-        offsetof(struct OSCILLATOR, vibratodepth), /* location in struct */
+        offsetof(struct OSCILLATOR, vibratofreq), /* location in struct */
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Scale the phase step by plus or minus this amount scaled by the output (-1 to 1)\
- of the vibrato oscillator.  A vibrato depth of zero turns off vibrato as does a source\
- oscillator of -1."},
+        set_vibratofreq,    /* called after write */
+        "Add up to this frequency to the output based on the vibrato oscallator. \
+ To vary the output between 420 and 460 Hertz set the base frequency to 420 and\
+ the vibrato frequency to 40."},
     {
         "oscillators",      /* the table name */
         "hardsyncosc",      /* the column name */
@@ -696,8 +697,36 @@ int set_glidems (
     // set by glidefrequency in glidecount steps.
     posc->glidestep = ((posc->glidefreq / SRATE) - posc->phasestep) / (float) posc->glidecount;
 
-fprintf(stderr, "glidestep = %f\n", posc->glidefreq);
-fprintf(stderr, "glidecount = %d\n", posc->glidecount);
+    return 0;
+}
+
+
+/***************************************************************
+ * set_vibratofreq(): - Validate a new vibrato frequency and set
+ * the vibrato phase step for that frequency.
+ * Return 1 if error and 0 if valid
+ * 
+ * Output:       0 if valid
+ * Effects:      Oscillator table
+ ***************************************************************/
+int set_vibratofreq (
+    char *tbl,          // "oscillators"
+    char *column,       // "vibratofreq"
+    char *SQL,          // UI command that changed glidems
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct OSCILLATOR *posc;
+
+    posc = (struct OSCILLATOR *) pr;
+    if ((posc->vibratofreq < 0.0) || (posc->vibratofreq > 20000.1))
+        return 1;
+
+    // Set vibratostep based on the frequncy
+    // Use float to prevent integer overflow
+    posc->vibratostep = posc->vibratofreq / SRATE;
+
     return 0;
 }
 

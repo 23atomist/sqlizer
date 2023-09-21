@@ -35,20 +35,21 @@ struct OSCILLATOR
     int      idx;              // Index of this oscillator.  0 to OSCILLATOR_COUNT-1
     int      otype;            // Sine, square, triangle, noise, wave table
     float    freq;             // UI element. Used to computer phasestep below
-    float    phaseaccumulator; // phase of output in range 0 to 1
+    float    phaseaccumulator; // Phase of output in range 0 to 1
     float    symmetry;         // Symmetry (0 to 1) for sine, square, triangle
     float    phaseoffset;      // Added to accumulator before computing waveform value
     int      vibratoosc;       // Index of oscillator that controls vibrato
-    float    vibratodepth;     // Added/subtracted to phasestep based on vibratoosc
+    float    vibratofreq;      // Added to phasestep based on vibratoosc (+0 to +1)
     float    glidefreq;        // Target frequency after a glide
     int      glidems;          // Number of milliseconds to take to get to glidefreq
     int      hardsyncosc;      // Index of osc that controls hardsync.  ==-1 if off
     // The following are not brought out to the UI
-    float    phasestep;        // added to phase accumulator each step
+    float    phasestep;        // Added to phase accumulator each step
+    float    vibratostep;      // Phase step corresponding to vibratofreq
     int      glidecount;       // Num samples to apply glidestep, decrement each sample
     float    glidestep;        // Add this to phasestep if glidecount is not zero
     int      sync;             // ==1 for one sample as output crosses zero. 
-    float    oscout;           // output value of oscillator in range of -1 to +1
+    float    oscout;           // Output value of oscillator in range of -1 to +1
 };
 
 /***************************************************************
