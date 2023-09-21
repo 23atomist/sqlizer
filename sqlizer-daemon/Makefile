@@ -23,9 +23,9 @@ CFLAGS      = $(OPT) $(DEBUG)
 
 SYNTHOBJS   = main.o tables.o voices.o
 
-all: sqlizer
+all: sqlizer-daemon
 
-sqlizer: $(SYNTHOBJS) 
+sqlizer-daemon: $(SYNTHOBJS) 
 	$(CC) $(SYNTHOBJS) -g -o $@ $(LDOPTS)
 
 main.o: main.c sqlizer.h
@@ -48,5 +48,5 @@ standard: clean
 	done
 
 clean: 
-	rm -rf *.o sqlizer sqlizer-static
+	rm -rf *.o sqlizer-daemon
 
