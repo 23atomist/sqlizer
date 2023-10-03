@@ -183,7 +183,7 @@ int  val;
  * zero at a phase of 0.5, and -1 at a phase of 0.75.
  *
  * From the structure definition:
-     int      idx;              // Index of this oscillator.  0 to OSCILLATOR_COUNT-1
+    int      idx;              // Index of this oscillator.  0 to OSCILLATOR_COUNT-1
     int      otype;            // Sine, square, triangle, noise, wave table
     float    freq;             // UI element. Used to computer phasestep below
     float    phaseaccumulator; // phase of output in range 0 to 1
@@ -228,12 +228,14 @@ void do_oscillator(
     }
 
     // Adjust phase step based on glide
-    // Reset glidems if done
     if (posc->glidecount != 0) {
         posc->phasestep += posc->glidestep;
         posc->glidecount--;
-        if (posc->glidecount == 0)
+        // If done, reset glidems and set phase step to correct value
+        if (posc->glidecount == 0) {
             posc->glidems = 0;
+            posc->phasestep = posc->glidefreq / SRATE;
+        }
     }
 
     // Apply vibrato if a valid osc is specified.  Map the vibrato oscillator
@@ -246,9 +248,9 @@ void do_oscillator(
 
     // Adjust phase step based on symmetry
     if (posc->phaseaccumulator < 0.5) 
-        phstep = 0.5 * phstep / posc->symmetry;
-    else
         phstep = 0.5 * phstep / (1.0 - posc->symmetry);
+    else
+        phstep = 0.5 * phstep / posc->symmetry;
 
     // Adjust the phase of the oscillator.  Subtract floor since phase might > 2.0!
     posc->phaseaccumulator += phstep;
