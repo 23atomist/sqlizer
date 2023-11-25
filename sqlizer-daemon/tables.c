@@ -35,334 +35,23 @@
 #include "sqlizer.h"        /* for table definitions and sizes */
 
 extern UI ui[];
-extern struct OSCILLATOR oscillators[];
-extern struct AMP_ENVELOPE ampenv[];
 extern struct VOICE voices[];
-static int set_freq(char *, char *, char *, void *, int,  void *);
-static int get_freq(char *, char *, char *, void *, int);
+static int set_vstate(char *, char *, char *, void *, int,  void *);
+static int set_o1freq(char *, char *, char *, void *, int,  void *);
+static int set_o2freq(char *, char *, char *, void *, int,  void *);
+static int set_vibfreq(char *, char *, char *, void *, int,  void *);
+static int set_tremfreq(char *, char *, char *, void *, int,  void *);
+static int get_o1freq(char *, char *, char *, void *, int);
+static int get_o2freq(char *, char *, char *, void *, int);
 static int set_glidefreq(char *, char *, char *, void *, int,  void *);
 static int set_glidems(char *, char *, char *, void *, int,  void *);
-static int set_symmetry(char *, char *, char *, void *, int,  void *);
-static int set_vibratofreq(char *, char *, char *, void *, int,  void *);
+static int set_o1symmetry(char *, char *, char *, void *, int,  void *);
+static int set_o2symmetry(char *, char *, char *, void *, int,  void *);
+static int set_vibsymmetry(char *, char *, char *, void *, int,  void *);
+static int set_vibdepth(char *, char *, char *, void *, int,  void *);
+static int set_tremsymmetry(char *, char *, char *, void *, int,  void *);
 
 /*INDENT-OFF*/
-/***************************************************************
- *   Column definitions for the oscillator table
- **************************************************************/
-RTA_COLDEF osccols[] = {
-    {
-        "oscillators",      /* the table name */
-        "idx",              /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct OSCILLATOR, idx), /* location in struct */
-        RTA_READONLY,       /* set at init time */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Numeric index of row in this table."},
-    {
-        "oscillators",      /* the table name */
-        "otype",            /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct OSCILLATOR, otype), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Type of oscillator output as one of off(0), sine(1), square(2), or triangle(3)\
- or noise(4)."},
-    {
-        "oscillators",      /* the table name */
-        "freq",             /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct OSCILLATOR, freq), /* location in struct */
-        0,                  /* no flags */
-        get_freq,           /* called before read */
-        set_freq,           /* called after write */
-        "Oscillator frequency in Hertz.  Range is 0.001 to 20000."},
-    {
-        "oscillators",      /* the table name */
-        "phaseaccumulator", /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct OSCILLATOR, phaseaccumulator), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "This is the phase of the output in the range of 0 to 1.  Multiply by 360 to get\
- degrees or by 2 pi to get radians."},
-    {
-        "oscillators",      /* the table name */
-        "glidefreq",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct OSCILLATOR, glidefreq), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        set_glidefreq,      /* called after write */
-        "Target frequency at completion of glide.  Range is 0.001 to 20000."},
-    {
-        "oscillators",      /* the table name */
-        "glidems",          /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct OSCILLATOR, glidems), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        set_glidems,        /* called after write */
-        "Number of millisecond to move from current frequency to glide frequency."},
-    {
-        "oscillators",      /* the table name */
-        "symmetry",         /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct OSCILLATOR, symmetry), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        set_symmetry,       /* called after write */
-        "Scale the phase step by this value before the phase accumulator reaches 0.5\
- (180 degrees, or the first half of the cycle), and by one minus this value during\
- the second half of the cycle.  A value of 0.5 makes the output symmetric, that is,\
- a sine wave, square wave, or a triangle wave.  Setting the value to, say, 0.1\
- makes a square wave into a pulse, and a triangle into a ramp up.  A value of\
- 0.99 makes a fast rising sawtooth with a descending ramp.  Asymmetric sine\
- waves are one frequency in the positive half cycle and a different frequency in\
- the negative half cycle."},
-    {
-        "oscillators",      /* the table name */
-        "phaseoffset",      /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct OSCILLATOR, phaseoffset), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "This value plus the phase accumulator is used to compute the phase\
- of the output waveform.  This helps make an asymmetric triangle waveform into\
- a ramp."},
-    {
-        "oscillators",      /* the table name */
-        "vibratoosc",       /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct OSCILLATOR, vibratoosc), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "The index of the oscillator that controls vibrato"},
-    {
-        "oscillators",      /* the table name */
-        "vibratofreq",      /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct OSCILLATOR, vibratofreq), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        set_vibratofreq,    /* called after write */
-        "Add up to this frequency to the output based on the vibrato oscallator. \
- To vary the output between 420 and 460 Hertz set the base frequency to 420 and\
- the vibrato frequency to 40."},
-    {
-        "oscillators",      /* the table name */
-        "hardsyncosc",      /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct OSCILLATOR, hardsyncosc), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "The index of the oscillator that controls hardsync on this oscillator.\
-  A value of -1 turns off hardsync."},
-};
-
-
-/***************************************************************
- *   Column definitions for the amplitude envelopes table
- **************************************************************/
-RTA_COLDEF ampenvcols[] = {
-    {
-        "ampenv",           /* the table name */
-        "idx",              /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, idx), /* location in struct */
-        RTA_READONLY,       /* set at init time */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Numeric index of this row in the table."},
-    {
-        "ampenv",           /* the table name */
-        "envname",          /* the column name */
-        RTA_STR,            /* it is a float */
-        ENVNAME_LEN,        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, envname), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "A unique identified for this amplitude envelope."},
-    {
-        "ampenv",           /* the table name */
-        "step1time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step1time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step1gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step1gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-    {
-        "ampenv",           /* the table name */
-        "step2time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step2time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step2gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step2gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-    {
-        "ampenv",           /* the table name */
-        "step3time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step3time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step3gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step3gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-    {
-        "ampenv",           /* the table name */
-        "step4time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step4time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step4gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step4gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-    {
-        "ampenv",           /* the table name */
-        "step5time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step5time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step5gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step5gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-    {
-        "ampenv",           /* the table name */
-        "step6time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step6time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step6gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step6gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-    {
-        "ampenv",           /* the table name */
-        "step7time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step7time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step7gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step7gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-    {
-        "ampenv",           /* the table name */
-        "step8time",        /* the column name */
-        RTA_INT,            /* it is a float */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step8time), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Number of milliseconds to apply this step/gain to the voice amplitude."},
-    {
-        "ampenv",           /* the table name */
-        "step8gain",        /* the column name */
-        RTA_FLOAT,          /* it is a float */
-        sizeof(float),      /* number of bytes */
-        offsetof(struct AMP_ENVELOPE, step8gain), /* location in struct */
-        RTA_DISKSAVE,       /* save to disk on change */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "Amount of gain to apply during this step. Must be between 0 and 1."},
-};
-
 
 /***************************************************************
  *   Column definitions for the voices table
@@ -387,7 +76,7 @@ RTA_COLDEF voicecols[] = {
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         (int (*)()) 0,      /* called after write */
-        "A unique identified for this note.  Assigned by the UI that added the note."},
+        "An identified for this note.  Assigned by the UI that added the note."},
     {
         "voices",           /* the table name */
         "chordid",          /* the column name */
@@ -407,7 +96,7 @@ RTA_COLDEF voicecols[] = {
         offsetof(struct VOICE, vstate), /* location in struct */
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
+        set_vstate,         /* called after write */
         "State of voice as one of off(0), inuse(1), on(2), sustain(3), or forced release(4).\
   Forced release is after a continuous sustain (eg, organ) goes from sustain to release.\
   The UI must explicitly change the state from sustain to forced release."},
@@ -423,56 +112,238 @@ RTA_COLDEF voicecols[] = {
         "The number of milliseconds the tone has been on.  Set to zero at tone start."},
     {
         "voices",           /* the table name */
-        "ampenvidx",        /* the column name */
+        "o1type",           /* the column name */
         RTA_INT,            /* it is an integer */
         sizeof(int),        /* number of bytes */
-        offsetof(struct VOICE, ampenvidx), /* location in struct */
+        offsetof(struct VOICE, o1type), /* location in struct */
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         (int (*)()) 0,      /* called after write */
-        "The index in amplitude envelope table of which envelope to\
- use for this voice."},
+        "Type of oscillator output as one of off(0), sine(1), square(2), triangle(3)\
+ or noise(4)."},
     {
         "voices",           /* the table name */
-        "osc1",             /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct VOICE, osc1), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "The index in the oscillator table for the main oscillator for this voice."},
-    {
-        "voices",           /* the table name */
-        "osc1gain",         /* the column name */
+        "o1freq",           /* the column name */
         RTA_FLOAT,          /* it is a float */
         sizeof(float),      /* number of bytes */
-        offsetof(struct VOICE, osc1gain), /* location in struct */
+        offsetof(struct VOICE, o1freq), /* location in struct */
         0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "The input gain (attenuation) applied to the data from osc1."},
+        get_o1freq,         /* called before read */
+        set_o1freq,         /* called after write */
+        "Oscillator frequency in Hertz.  Range is 0.001 to 20000."},
     {
         "voices",           /* the table name */
-        "osc2",             /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct VOICE, osc2), /* location in struct */
-        0,                  /* no flags */
-        (int (*)()) 0,      /* called before read */
-        (int (*)()) 0,      /* called after write */
-        "The index in the oscillator table of the seconary oscillator for\
- this voice."},
-    {
-        "voices",           /* the table name */
-        "osc2gain",         /* the column name */
+        "o1phaseacc",       /* the column name */
         RTA_FLOAT,          /* it is a float */
         sizeof(float),      /* number of bytes */
-        offsetof(struct VOICE, osc2gain), /* location in struct */
+        offsetof(struct VOICE, o1phaseacc), /* location in struct */
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         (int (*)()) 0,      /* called after write */
-        "The input gain (attenuation) applied to the data from osc2."},
+        "This is the phase of the output in the range of 0 to 1.  Multiply by 360 to get\
+ degrees or by 2 pi to get radians."},
+    {
+        "voices",           /* the table name */
+        "o1symmetry",       /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o1symmetry), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_o1symmetry,     /* called after write */
+        "Scale the phase step by this value before the phase accumulator reaches 0.5\
+ (180 degrees, or the first half of the cycle), and by one minus this value during\
+ the second half of the cycle.  A value of 0.5 makes the output symmetric, that is,\
+ a sine wave, square wave, or a triangle wave.  Setting the value to, say, 0.1\
+ makes a square wave into a pulse, and a triangle into a ramp up.  A value of\
+ 0.99 makes a fast rising sawtooth with a descending ramp.  Asymmetric sine\
+ waves are one frequency in the positive half cycle and a different frequency in\
+ the negative half cycle."},
+    {
+        "voices",           /* the table name */
+        "o1phaseoffset",    /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o1phaseoffset), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This value plus the phase accumulator is used to compute the phase\
+ of the output waveform.  This helps make an asymmetric triangle waveform into\
+ a ramp."},
+    {
+        "voices",           /* the table name */
+        "o1gain",           /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o1gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "The gain (attenuation) applied to the output from osc1."},
+    {
+        "voices",           /* the table name */
+        "vibtype",          /* the column name */
+        RTA_INT,            /* it is an integer */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, vibtype), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Type of oscillator output as one of off(0), sine(1), square(2), triangle(3)\
+ or noise(4)."},
+    {
+        "voices",           /* the table name */
+        "vibfreq",          /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, vibfreq), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_vibfreq,        /* called after write */
+        "Oscillator frequency in Hertz.  Range is 0.001 to 20000."},
+    {
+        "voices",           /* the table name */
+        "vibphaseacc",      /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, vibphaseacc), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This is the phase of the vibrato oscillator in the range of 0 to 1. \
+ Multiply by 360 to get degrees or by 2 pi to get radians."},
+    {
+        "voices",           /* the table name */
+        "vibdepth",         /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, vibdepth), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_vibdepth,       /* called after write */
+        "This is the maximum frequency that is added to o1 as part of vibrato.  The o1\
+ output frequency varies between o1freq and (o1freq + vibdepth)"},
+    {
+        "voices",           /* the table name */
+        "vibsymmetry",       /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, vibsymmetry), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_vibsymmetry,    /* called after write */
+        "Scale the phase step by this value before the phase accumulator reaches 0.5\
+ (180 degrees, or the first half of the cycle), and by one minus this value during\
+ the second half of the cycle.  A value of 0.5 makes the output symmetric, that is,\
+ a sine wave, square wave, or a triangle wave.  Setting the value to, say, 0.1\
+ makes a square wave into a pulse, and a triangle into a ramp up.  A value of\
+ 0.99 makes a fast rising sawtooth with a descending ramp.  Asymmetric sine\
+ waves are one frequency in the positive half cycle and a different frequency in\
+ the negative half cycle."},
+    {
+        "voices",           /* the table name */
+        "vibphaseoffset",    /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, vibphaseoffset), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This value plus the phase accumulator is used to compute the phase\
+ of the output waveform.  This helps make an asymmetric triangle waveform into\
+ a ramp."},
+    {
+        "voices",           /* the table name */
+        "glidefreq",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, glidefreq), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_glidefreq,      /* called after write */
+        "Target frequency at completion of glide.  Range is 0.001 to 20000."},
+    {
+        "voices",           /* the table name */
+        "glidems",          /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, glidems), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_glidems,        /* called after write */
+        "Number of millisecond to move from current frequency to glide frequency."},
+    {
+        "voices",           /* the table name */
+        "o2type",           /* the column name */
+        RTA_INT,            /* it is an integer */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, o2type), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Type of oscillator output as one of off(0), sine(1), square(2), triangle(3)\
+ or noise(4)."},
+    {
+        "voices",           /* the table name */
+        "o2freq",           /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o2freq), /* location in struct */
+        0,                  /* no flags */
+        get_o2freq,         /* called before read */
+        set_o2freq,         /* called after write */
+        "Oscillator frequency in Hertz.  Range is 0.001 to 20000."},
+    {
+        "voices",           /* the table name */
+        "o2phaseacc",       /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o2phaseacc), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This is the phase of the output in the range of 0 to 1.  Multiply by 360 to get\
+ degrees or by 2 pi to get radians."},
+    {
+        "voices",           /* the table name */
+        "o2symmetry",       /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o2symmetry), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_o2symmetry,     /* called after write */
+        "Scale the phase step by this value before the phase accumulator reaches 0.5\
+ (180 degrees, or the first half of the cycle), and by one minus this value during\
+ the second half of the cycle.  A value of 0.5 makes the output symmetric, that is,\
+ a sine wave, square wave, or a triangle wave.  Setting the value to, say, 0.1\
+ makes a square wave into a pulse, and a triangle into a ramp up.  A value of\
+ 0.99 makes a fast rising sawtooth with a descending ramp.  Asymmetric sine\
+ waves are one frequency in the positive half cycle and a different frequency in\
+ the negative half cycle."},
+    {
+        "voices",           /* the table name */
+        "o2phaseoffset",    /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o2phaseoffset), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This value plus the phase accumulator is used to compute the phase\
+ of the output waveform.  This helps make an asymmetric triangle waveform into\
+ a ramp."},
+    {
+        "voices",           /* the table name */
+        "o2gain",           /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, o2gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "The gain (attenuation) applied to the output from osc2."},
     {
         "voices",           /* the table name */
         "mixmode",          /* the column name */
@@ -482,8 +353,256 @@ RTA_COLDEF voicecols[] = {
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         (int (*)()) 0,      /* called after write */
-        "How to mix osc1 and osc2.  Must be one of sum (0), amplitude osc1 by\
- osc2 (1), or ring mix osc1 and osc2 (2)."},
+        "How to mix osc1 and osc2.  Must be one of none (0), sum (1),\
+AM o1 by o2, FM o1 by o2, ring, hardsync of o1 by o2."},
+    {
+        "voices",           /* the table name */
+        "tremtype",          /* the column name */
+        RTA_INT,            /* it is an integer */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, tremtype), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Tremolo waveform as one of off(0), sine(1), square(2), triangle(3)\
+ or noise(4)."},
+    {
+        "voices",           /* the table name */
+        "tremfreq",          /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, tremfreq), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_tremfreq,       /* called after write */
+        "Tremolo frequency in Hertz.  Range is 0.001 to 20000."},
+    {
+        "voices",           /* the table name */
+        "tremphaseacc",     /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, tremphaseacc), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This is the phase of the tremelo output in the range of 0 to 1. \
+ Multiply by 360 to get degrees or by 2 pi to get radians."},
+    {
+        "voices",           /* the table name */
+        "tremdepth",         /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, tremdepth), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This is the maximum gain that is added to o1gain as part of tremolo.  The o1\
+ output gain varies between o1gain and (o1gain + tremdepth)"},
+    {
+        "voices",           /* the table name */
+        "tremsymmetry",       /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, tremsymmetry), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        set_tremsymmetry,   /* called after write */
+        "Scale the phase step by this value before the phase accumulator reaches 0.5\
+ (180 degrees, or the first half of the cycle), and by one minus this value during\
+ the second half of the cycle.  A value of 0.5 makes the output symmetric, that is,\
+ a sine wave, square wave, or a triangle wave.  Setting the value to, say, 0.1\
+ makes a square wave into a pulse, and a triangle into a ramp up.  A value of\
+ 0.99 makes a fast rising sawtooth with a descending ramp.  Asymmetric sine\
+ waves are one frequency in the positive half cycle and a different frequency in\
+ the negative half cycle."},
+    {
+        "voices",           /* the table name */
+        "tremphaseoffset",    /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, tremphaseoffset), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "This value plus the phase accumulator is used to compute the phase\
+ of the output waveform.  This helps make an asymmetric triangle waveform into\
+ a ramp."},
+    {
+        "voices",           /* the table name */
+        "step0time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step0time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude. \
+ Set to 60000 (1 minute) to enter SUSTAIN mode."},
+    {
+        "voices",           /* the table name */
+        "step0gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step0gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "step1time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step1time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude \
+ Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+    {
+        "voices",           /* the table name */
+        "step1gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step1gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "step2time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step2time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude \
+ Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+    {
+        "voices",           /* the table name */
+        "step2gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step2gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "step3time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step3time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude \
+ Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+    {
+        "voices",           /* the table name */
+        "step3gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step3gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "step4time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step4time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude \
+ Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+    {
+        "voices",           /* the table name */
+        "step4gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step4gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "step5time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step5time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude \
+ Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+    {
+        "voices",           /* the table name */
+        "step5gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step5gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "step6time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step6time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude \
+ Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+    {
+        "voices",           /* the table name */
+        "step6gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step6gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "step7time",        /* the column name */
+        RTA_INT,            /* it is a float */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, step7time), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Number of milliseconds to apply this step/gain to the voice amplitude \
+ Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+    {
+        "voices",           /* the table name */
+        "step7gain",        /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, step7gain), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Amount of gain to apply during this step. Must be between 0 and 1. \
+ Set to 0 to end the note."},
     {
         "voices",           /* the table name */
         "outputgain",       /* the column name */
@@ -513,32 +632,6 @@ RTA_COLDEF voicecols[] = {
  **************************************************************/
 RTA_TBLDEF UITables[] = {
     {
-        "oscillators",      /* table name */
-        oscillators,        /* address of table */
-        sizeof(struct OSCILLATOR), /* length of each row */
-        OSCILLATOR_COUNT,   /* number of rows */
-        (void *) NULL,      /* iterator function */
-        (void *) NULL,      /* iterator callback data */
-        (void *) NULL,      /* INSERT callback */
-        (void *) NULL,      /* DELETE callback */
-        osccols,            /* array of column defs */
-        sizeof(osccols) / sizeof(RTA_COLDEF), /* number of cols */
-        "",                 /* save file name */
-        "Table of oscillators and their parameters"},
-    {
-        "ampenv",           /* table name */
-        ampenv,             /* address of table */
-        sizeof(struct AMP_ENVELOPE), /* length of each row */
-        ENVELOPE_COUNT,     /* number of rows */
-        (void *) NULL,      /* iterator function */
-        (void *) NULL,      /* iterator callback data */
-        (void *) NULL,      /* INSERT callback */
-        (void *) NULL,      /* DELETE callback */
-        ampenvcols,         /* array of column defs */
-        sizeof(ampenvcols) / sizeof(RTA_COLDEF), /* number of cols */
-        "ampenv.sql",       /* save file name */
-        "Table of amplitude envelopes and their parameters"},
-    {
         "voices",           /* table name */
         voices,             /* address of table */
         sizeof(struct VOICE), /* length of each row */
@@ -558,84 +651,240 @@ int      nuitables = (sizeof(UITables) / sizeof(RTA_TBLDEF));
 
 
 /***************************************************************
- * set_symmetry(): - Validate a new oscillator value for
+ * set_oXsymmetry(): - Validate a new oscillator value for
  * symmetry.  Valid values are in the range of 0.001 to 0.999.
  * return 1 if error and 0 if valid
  * 
  * Output:       0 if valid
  * Effects:      Oscillator table
  ***************************************************************/
-int set_symmetry (
-    char *tbl,          // "oscillators"
+int set_o1symmetry (
+    char *tbl,          // "voices"
     char *column,       // "symmetry"
     char *SQL,          // UI command that changed symmetry
     void *pr,           // pointer to the new row
     int row_num,        // zero index of row in table
     void *poldrow)      // row before any updates
 {
-    struct OSCILLATOR *posc;
+    struct VOICE *posc;
 
-    posc = (struct OSCILLATOR *) pr;
+    posc = (struct VOICE *) pr;
     // Comparing floats is not exactly _exact_
-    if ((posc->symmetry < 0.0099) || (posc->symmetry > 0.9991))
-        return 1;
-    else
-        return 0;
+    if (posc->o1symmetry < 0.0099)
+        posc->o1symmetry = 0.01;
+    else if (posc->o1symmetry > 0.9991)
+        posc->o1symmetry = 0.999;
+    return 0;
+}
+int set_o2symmetry (
+    char *tbl,          // "voices"
+    char *column,       // "symmetry"
+    char *SQL,          // UI command that changed symmetry
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+    // Comparing floats is not exactly _exact_
+    if (posc->o2symmetry < 0.0099)
+        posc->o2symmetry = 0.01;
+    else if (posc->o2symmetry > 0.9991)
+        posc->o2symmetry = 0.999;
+    return 0;
+}
+int set_vibsymmetry (
+    char *tbl,          // "voices"
+    char *column,       // "symmetry"
+    char *SQL,          // UI command that changed symmetry
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+    // Comparing floats is not exactly _exact_
+    if (posc->vibsymmetry < 0.0099)
+        posc->vibsymmetry = 0.01;
+    else if (posc->vibsymmetry > 0.9991)
+        posc->vibsymmetry = 0.999;
+    return 0;
+}
+int set_tremsymmetry (
+    char *tbl,          // "voices"
+    char *column,       // "symmetry"
+    char *SQL,          // UI command that changed symmetry
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+    // Comparing floats is not exactly _exact_
+    if (posc->tremsymmetry < 0.0099)
+        posc->tremsymmetry = 0.01;
+    else if (posc->tremsymmetry > 0.9991)
+        posc->tremsymmetry = 0.999;
+    return 0;
 }
 
 
 /***************************************************************
- * set_freq(): - Validate a new oscillator value for
+ * set_XXXXfreq(): - Validate a new oscillator value for
  * frequency.  Valid values are in the range of 0.001 to 20000
  * return 1 if error and 0 if valid
  * 
  * Output:       0 if valid
  * Effects:      oscillator phasestep
  ***************************************************************/
-int set_freq (
-    char *tbl,          // "oscillators"
+int set_o1freq (
+    char *tbl,          // "voices"
     char *column,       // "freq"
     char *SQL,          // UI command that changed freq
     void *pr,           // pointer to the new row
     int row_num,        // zero index of row in table
     void *poldrow)      // row before any updates
 {
-    struct OSCILLATOR *posc;
+    struct VOICE *posc;
 
-    posc = (struct OSCILLATOR *) pr;
+    posc = (struct VOICE *) pr;
     // Comparing floats is not exactly _exact_
-    if ((posc->freq < 0.0099) || (posc->freq > 20000.1))
-        return 1;
+    if (posc->o1freq < 0.0099)
+        posc->o1freq = 0.01;
+    if (posc->o1freq > 20000.1)
+        posc->o1freq = 20000.0;
 
     // Valid frequency.  Recompute phasestep
-    posc->phasestep = posc->freq / SRATE;
+    posc->o1phasestep = posc->o1freq / SRATE;
+    return 0;
+}
+int set_o2freq (
+    char *tbl,          // "voices"
+    char *column,       // "freq"
+    char *SQL,          // UI command that changed freq
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+    // Comparing floats is not exactly _exact_
+    if (posc->o2freq < 0.0099)
+        posc->o2freq = 0.01;
+    if (posc->o2freq > 20000.1)
+        posc->o2freq = 20000.0;
+
+    // Valid frequency.  Recompute phasestep
+    posc->o2phasestep = posc->o2freq / SRATE;
+    return 0;
+}
+int set_vibfreq (
+    char *tbl,          // "voices"
+    char *column,       // "vibratofreq"
+    char *SQL,          // UI command that changed glidems
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+    if (posc->vibfreq < 0.0099)
+        posc->vibfreq = 0.01;
+    if (posc->vibfreq > 20000.1)
+        posc->vibfreq = 20000.0;
+
+    // Set vibphasestep based on the frequncy
+    // Use float to prevent integer overflow
+    posc->vibphasestep = posc->vibfreq / SRATE;
+    return 0;
+}
+int set_tremfreq (
+    char *tbl,          // "voices"
+    char *column,       // "tremratofreq"
+    char *SQL,          // UI command that changed glidems
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+    if (posc->tremfreq < 0.0099)
+        posc->tremfreq = 0.01;
+    if (posc->tremfreq > 20000.1)
+        posc->tremfreq = 20000.0;
+
+    // Set tremphasestep based on the frequncy
+    // Use float to prevent integer overflow
+    posc->tremphasestep = posc->tremfreq / SRATE;
     return 0;
 }
 
 
 /***************************************************************
- * get_freq(): - Convert phasestep to frequency.  This is needed
+ * set_vibdepth(): - Convert depth as a frequency to the maximum
+ * phase offset to be applied to oscillator #1
+ * 
+ * Output:       0 if valid
+ * Effects:      osc #1 frequency range per vibrato
+ ***************************************************************/
+int set_vibdepth (
+    char *tbl,          // "voices"
+    char *column,       // "vibratofreq"
+    char *SQL,          // UI command that changed glidems
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+
+    // Set o1 max phase offset based on the vibrato depth
+    posc->vibo1phase = posc->vibdepth / SRATE;
+    return 0;
+}
+
+/***************************************************************
+ * get_XXXXfreq(): - Convert phasestep to frequency.  This is needed
  * since glide can change the set frequency of the oscillator.
  * 
  * Output:       0 if valid
  * Effects:      oscillator phasestep
  ***************************************************************/
-int get_freq (
-    char *tbl,          // "oscillators"
+int get_o1freq (
+    char *tbl,          // "voices"
     char *column,       // "freq"
     char *SQL,          // UI command that reads freq
     void *pr,           // pointer to the row
     int row_num)        // zero index of row in table
 {
-    struct OSCILLATOR *posc;
+    struct VOICE *posc;
 
-    posc = (struct OSCILLATOR *) pr;
+    posc = (struct VOICE *) pr;
 
     // Valid frequency.  Recompute phasestep
-    if (posc->phasestep != 0.0)
-        posc->freq = SRATE * posc->phasestep;
-    else
-        posc->freq = 0.0;
+    posc->o1freq = SRATE * posc->o1phasestep;
+    return 0;
+}
+int get_o2freq (
+    char *tbl,          // "voices"
+    char *column,       // "freq"
+    char *SQL,          // UI command that reads freq
+    void *pr,           // pointer to the row
+    int row_num)        // zero index of row in table
+{
+    struct VOICE *posc;
+
+    posc = (struct VOICE *) pr;
+
+    // Valid frequency.  Recompute phasestep
+    posc->o2freq = SRATE * posc->o2phasestep;
     return 0;
 }
 
@@ -649,20 +898,21 @@ int get_freq (
  * Effects:      oscillator glidestep
  ***************************************************************/
 int set_glidefreq (
-    char *tbl,          // "oscillators"
+    char *tbl,          // "voices"
     char *column,       // "glidefreq"
     char *SQL,          // UI command that changed glidefreq
     void *pr,           // pointer to the new row
     int row_num,        // zero index of row in table
     void *poldrow)      // row before any updates
 {
-    struct OSCILLATOR *posc;
+    struct VOICE *posc;
 
-    posc = (struct OSCILLATOR *) pr;
+    posc = (struct VOICE *) pr;
     // Comparing floats is not exactly _exact_
-    if ((posc->glidefreq < 0.0099) || (posc->glidefreq > 20000.1))
-        return 1;
-
+    if (posc->glidefreq < 0.0099)
+        posc->glidefreq = 0.01;
+    if (posc->glidefreq > 20000.1)
+        posc->glidefreq = 20000.0;
     return 0;
 }
 
@@ -676,18 +926,20 @@ int set_glidefreq (
  * Effects:      Oscillator table
  ***************************************************************/
 int set_glidems (
-    char *tbl,          // "oscillators"
+    char *tbl,          // "voices"
     char *column,       // "glidems"
     char *SQL,          // UI command that changed glidems
     void *pr,           // pointer to the new row
     int row_num,        // zero index of row in table
     void *poldrow)      // row before any updates
 {
-    struct OSCILLATOR *posc;
+    struct VOICE *posc;
 
-    posc = (struct OSCILLATOR *) pr;
-    if ((posc->glidems < 0) || (posc->glidems > 10000000))
-        return 1;
+    posc = (struct VOICE *) pr;
+    if (posc->glidems < 0)
+        posc->glidems = 0;
+    else if (posc->glidems > 10000000)
+        posc->glidems = 10000000;
 
     // Set glidecount with the number audio samples in glidems
     // Use float to prevent integer overflow
@@ -695,39 +947,58 @@ int set_glidems (
 
     // We want to step from the current phasestep to the phasestep
     // set by glidefrequency in glidecount steps.
-    posc->glidestep = ((posc->glidefreq / SRATE) - posc->phasestep) / (float) posc->glidecount;
-
+    if (posc->glidecount == 0)
+        posc->glidestep = 0.0;
+    else
+        posc->glidestep = ((posc->glidefreq / SRATE) - posc->o1phasestep) / (float) posc->glidecount;
     return 0;
 }
 
 
 /***************************************************************
- * set_vibratofreq(): - Validate a new vibrato frequency and set
- * the vibrato phase step for that frequency.
- * Return 1 if error and 0 if valid
+ * set_vstate(): - set the state of the voice.  IN-USE reserves
+ * the voice for further configuration before use.  ON turns 
+ * voice on and starts output.  SUSTAIN is similar to ON except
+ * that if a ADSR envelope state has a time value or -1 then 
+ * the voice remains on and ADSR is suspended.  Changing from 
+ * SUSPEND to ON set the ADSR envelop time to 1 ms effectively 
+ * moving the voice to the next state in the ADSR.
  * 
  * Output:       0 if valid
- * Effects:      Oscillator table
+ * Effects:      voice state
  ***************************************************************/
-int set_vibratofreq (
-    char *tbl,          // "oscillators"
-    char *column,       // "vibratofreq"
-    char *SQL,          // UI command that changed glidems
+int set_vstate (
+    char *tbl,          // "voices"
+    char *column,       // "vstate"
+    char *SQL,          // UI command that changed state
     void *pr,           // pointer to the new row
     int row_num,        // zero index of row in table
     void *poldrow)      // row before any updates
 {
-    struct OSCILLATOR *posc;
+    int    newstate;
+    int    oldstate;
+    struct VOICE *pvoc;
 
-    posc = (struct OSCILLATOR *) pr;
-    if ((posc->vibratofreq < 0.0) || (posc->vibratofreq > 20000.1))
-        return 1;
+    pvoc = (struct VOICE *) pr;
+    newstate = pvoc->vstate;
+    oldstate = ((struct VOICE *) poldrow)->vstate;
 
-    // Set vibratostep based on the frequncy
-    // Use float to prevent integer overflow
-    posc->vibratostep = posc->vibratofreq / SRATE;
+    // If going from OFF to ON, clear the ADSR note timer
+    if ((newstate == VSTATE_ON) && (oldstate == VSTATE_FREE)) {
+        pvoc->ontime = 0;
+        pvoc->adsridx = 0;
+    }
+
+    // if going from SUSTAIN to ON increment to the next step in ADSR
+    else if ((newstate == VSTATE_ON) && (oldstate == VSTATE_SUSTAIN)) {
+        if (pvoc->adsridx == MXADSRSTEP) {
+            // can't go past last step.  Turn voice off.
+            pvoc->vstate = VSTATE_FREE;
+            pvoc->voiceout = 0.0;
+            pvoc->vout = 0;
+        }
+    }
 
     return 0;
 }
-
 

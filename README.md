@@ -57,14 +57,8 @@ necessarily custom input and output methods.
 
 ## Tables
 We anticipate using several tables in the design.  These include:
-- Oscillators : with frequency, waveform, vibrato, and glide
 - Voices : with two oscillators, mixer, gain, filter, and amplitude envelope
-- Notes : oscillator and voice values sorted by musical instrument and note
-
-Still to be determined is how much to include in the voices table.  For
-example, maybe the oscillators should be part of the voices and in a stand-alone
-table.  Other tables might include one for multiple outputs and one for
-audio effects.
+- Patches : voice values sorted by musical instrument and note
 
 ## Goals
 The near term goal is to built the synthesizer daemon along with a sequencer
@@ -74,13 +68,19 @@ A possible longer term goal is to convert from floating point to integer
 arithmetic and then convert to Verilog for use on an FPGA.
 
 ## Status
-The oscillators are working and have the following parameters:
-- Frequency
-- Waveform (sine, square, triangle, noise)
-- Waveform symmetry
-- Vibrato (index of controlling oscillator)
-- Vibrato frequency
-- Glide target frequency
-- Glide duration in milliseconds
-- Hard sync (index of controlling oscillator)
+There is now a web (php) based debug interface to set voice parameters
+The voices are working but without the filter stage.  Voices have:
+- Oscillator #1 (freq, waveform, symmetry, phase offset, gain)
+- Oscillator #2 (freq, waveform, symmetry, phase offset, gain)
+- Mixer (none, sum, AM, FM, ring, hardsync)
+- Vibrato (freq, waveform, symmetry, phase offset, depth)
+- Glide (target frequency, glide duration)
+- Tremolo (freq, waveform, symmetry, phase offset, depth)
+- 8 Step ADSR (step gain, step duration)a
 
+## Next steps
+- Add a filter section to the voices
+- Update the table description docs
+- Add the patches table
+- Add a config table for sample rate, channels, and file output
+ 

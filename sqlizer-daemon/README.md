@@ -28,8 +28,8 @@ Install sqlizer-daemon with the following:
 ```
 
 ## Test
-Currently only the oscillators are working.  The output of
-oscillator #0 it routed to standard out of the program.
+Currently only part of the voices are working.  The output of
+voice #0 it routed to standard out of the program.
 Test the program by starting it with output piped to aplay
 so you can hear the output.
 ```
@@ -44,18 +44,19 @@ You should see an introductory message and hash mark as a prompt.
 Enter the following, one at a time, at the prompt.  You should
 be able to cut and paste these commands.
 ```
-  UPDATE oscillators SET otype=1 WHERE idx=0;   -- sine
-  UPDATE oscillators SET otype=2 WHERE idx=0;   -- square
-  UPDATE oscillators SET otype=3 WHERE idx=0;   -- triangle
-  UPDATE oscillators SET otype=4 WHERE idx=0;   -- noise
-  UPDATE oscillators SET otype=3, freq=220 WHERE idx=0;
-  UPDATE oscillators SET glidefreq=880, glidems=4000 WHERE idx=0;
-  UPDATE oscillators SET otype=3, freq=0.5 WHERE idx=1;
-  UPDATE oscillators SET vibratoosc=1, vibratofreq=880 WHERE idx=0;
-  UPDATE oscillators SET symmetry=0.01, phaseoffset=0.25 WHERE idx=1;
-  UPDATE oscillators SET otype=0 WHERE idx=0;   -- off
-  \pset pager off -- Turn off the psql pager to make output easier to see
-  SELECT * FROM oscillators WHERE idx=0;
-  SELECT name, help FROM rta_columns WHERE table=oscillators;
+  SELECT name, help FROM rta_columns WHERE table=voices;  -- lots of columns!
+
+  UPDATE voices SET vstate=1 WHERE idx=0;   -- reserve this voice
+  UPDATE voices SET o1type=1, o1freq=400.0, o1symmetry=0.5, o1phaseoffset=0.0,
+         o1gain=0.80, o2type=1, o2freq=50.000, o2symmetry=0.500, o2phaseoffset=0.000,
+         o2gain=0.000, mixmode=3, vibtype=1, vibfreq=10.000, vibsymmetry=0.500,
+         vibphaseoffset=0.000, vibdepth=55, glidefreq=0.000, glidems=0, tremtype=1,
+         tremfreq=600.000, tremsymmetry=0.500, tremphaseoffset=0.000, tremdepth=0.100,
+         step0time=1000, step1time=1000, step2time=1000, step3time=1000, step4time=1,
+         step5time=1, step6time=1, step7time=1, step0gain=1.000, step1gain=0.7000,
+         step2gain=0.6000, step3gain=0.01, step4gain=0, step5gain=1.000, step6gain=1.000,
+         step7gain=1.000, o1phaseacc=0, o2phaseacc=0
+  WHERE idx = 0;
+  UPDATE voices SET vstate=2 WHERE idx=0;   -- play the note
 ```
 

@@ -51,8 +51,6 @@ extern void     do_synth();        // process oscillators, voices, and filters
 /***************************************************************************
  *  - System-wide global variable allocation
  ***************************************************************************/
-struct OSCILLATOR oscillators[OSCILLATOR_COUNT];
-struct AMP_ENVELOPE ampenv[ENVELOPE_COUNT];
 struct VOICE voices[VOICE_COUNT];
 UI     *ConnHead;              // head of linked list of UI conns
 int     nui = 0;               // number of open UI connections
@@ -116,8 +114,8 @@ int main()
 
         // generate output no less often than 1 ms
         outputperiod.tv_sec = 0;
-outputperiod.tv_usec = 10000;
-        //outputperiod.tv_usec = 1000;
+//outputperiod.tv_usec = 10000;
+        outputperiod.tv_usec = 1000;
 
         // Wait for timeout or file descriptor activity
         (void) select(mxfd + 1, &rfds, &wfds, (fd_set *) 0, &outputperiod);
