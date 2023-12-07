@@ -32,6 +32,7 @@
 
 #include <stdio.h>          /* for 'fprintf' */
 #include <stddef.h>         /* for 'offsetof' */
+#include <math.h>           /* for cosf,sinf, and Pi/2 */
 #include "sqlizer.h"        /* for table definitions and sizes */
 
 extern UI ui[];
@@ -50,6 +51,7 @@ static int set_o2symmetry(char *, char *, char *, void *, int,  void *);
 static int set_vibsymmetry(char *, char *, char *, void *, int,  void *);
 static int set_vibdepth(char *, char *, char *, void *, int,  void *);
 static int set_tremsymmetry(char *, char *, char *, void *, int,  void *);
+static int set_flttype(char *, char *, char *, void *, int,  void *);
 
 /*INDENT-OFF*/
 
@@ -130,7 +132,7 @@ RTA_COLDEF voicecols[] = {
         0,                  /* no flags */
         get_o1freq,         /* called before read */
         set_o1freq,         /* called after write */
-        "Oscillator frequency in Hertz.  Range is 0.001 to 20000."},
+        "Oscillator frequency in Hertz.  Range is 0.001 to 9000."},
     {
         "voices",           /* the table name */
         "o1phaseacc",       /* the column name */
@@ -201,7 +203,7 @@ RTA_COLDEF voicecols[] = {
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         set_vibfreq,        /* called after write */
-        "Oscillator frequency in Hertz.  Range is 0.001 to 20000."},
+        "Oscillator frequency in Hertz.  Range is 0.001 to 9000."},
     {
         "voices",           /* the table name */
         "vibphaseacc",      /* the column name */
@@ -262,7 +264,7 @@ RTA_COLDEF voicecols[] = {
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         set_glidefreq,      /* called after write */
-        "Target frequency at completion of glide.  Range is 0.001 to 20000."},
+        "Target frequency at completion of glide.  Range is 0.001 to 9000."},
     {
         "voices",           /* the table name */
         "glidems",          /* the column name */
@@ -293,7 +295,7 @@ RTA_COLDEF voicecols[] = {
         0,                  /* no flags */
         get_o2freq,         /* called before read */
         set_o2freq,         /* called after write */
-        "Oscillator frequency in Hertz.  Range is 0.001 to 20000."},
+        "Oscillator frequency in Hertz.  Range is 0.001 to 9000."},
     {
         "voices",           /* the table name */
         "o2phaseacc",       /* the column name */
@@ -375,7 +377,7 @@ AM o1 by o2, FM o1 by o2, ring, hardsync of o1 by o2."},
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         set_tremfreq,       /* called after write */
-        "Tremolo frequency in Hertz.  Range is 0.001 to 20000."},
+        "Tremolo frequency in Hertz.  Range is 0.001 to 9000."},
     {
         "voices",           /* the table name */
         "tremphaseacc",     /* the column name */
@@ -591,7 +593,7 @@ AM o1 by o2, FM o1 by o2, ring, hardsync of o1 by o2."},
         (int (*)()) 0,      /* called before read */
         (int (*)()) 0,      /* called after write */
         "Number of milliseconds to apply this step/gain to the voice amplitude \
- Set to 60000 (1 minute) to enter SUSTAIN mode.."},
+ Set to 60000 (1 minute) to enter SUSTAIN mode."},
     {
         "voices",           /* the table name */
         "step7gain",        /* the column name */
@@ -603,6 +605,58 @@ AM o1 by o2, FM o1 by o2, ring, hardsync of o1 by o2."},
         (int (*)()) 0,      /* called after write */
         "Amount of gain to apply during this step. Must be between 0 and 1. \
  Set to 0 to end the note."},
+    {
+        "voices",           /* the table name */
+        "flttype",          /* the column name */
+        RTA_INT,            /* it is an integer */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, flttype), /* location in struct */
+        0,                  /* no flags */ 
+        (int (*)()) 0,      /* called before read */
+        set_flttype,        /* called after write */
+        "The type of output filter: none (0), low-pass (1), high-pass(2),\
+ band-pass(3), or band-reject(4)"},
+    {
+        "voices",           /* the table name */
+        "fltfreq1",         /* the column name */
+        RTA_INT,            /* it is an integer */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, fltf1), /* location in struct */
+        0,                  /* no flags */ 
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Output filter #1 cutoff frequency in range of 1 to 20000 Hz."},
+    {
+        "voices",           /* the table name */
+        "fltfreq2",         /* the column name */
+        RTA_INT,            /* it is an integer */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, fltf2), /* location in struct */
+        0,                  /* no flags */ 
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Output filter #2 cutoff frequency in range of 1 to 20000 Hz.."},
+    {
+        "voices",           /* the table name */
+        "fltrolloff",       /* the column name */
+        RTA_INT,            /* it is an integer */
+        sizeof(int),        /* number of bytes */
+        offsetof(struct VOICE, fltrolloff), /* location in struct */
+        0,                  /* no flags */ 
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Output filter rolloff in dB.  Must be either 6 or 12.  Band pass\
+ and band stop filters always have 6 dB rolloff"},
+    {
+        "voices",           /* the table name */
+        "fltQ",             /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, fltq), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "The Q for the output filter in range of 0.1 to 25."},
     {
         "voices",           /* the table name */
         "outputgain",       /* the column name */
@@ -734,7 +788,7 @@ int set_tremsymmetry (
 
 /***************************************************************
  * set_XXXXfreq(): - Validate a new oscillator value for
- * frequency.  Valid values are in the range of 0.001 to 20000
+ * frequency.  Valid values are in the range of 0.001 to MX_FREQ
  * return 1 if error and 0 if valid
  * 
  * Output:       0 if valid
@@ -754,8 +808,8 @@ int set_o1freq (
     // Comparing floats is not exactly _exact_
     if (posc->o1freq < 0.0099)
         posc->o1freq = 0.01;
-    if (posc->o1freq > 20000.1)
-        posc->o1freq = 20000.0;
+    if (posc->o1freq > MX_FREQ)
+        posc->o1freq = MX_FREQ;
 
     // Valid frequency.  Recompute phasestep
     posc->o1phasestep = posc->o1freq / SRATE;
@@ -775,8 +829,8 @@ int set_o2freq (
     // Comparing floats is not exactly _exact_
     if (posc->o2freq < 0.0099)
         posc->o2freq = 0.01;
-    if (posc->o2freq > 20000.1)
-        posc->o2freq = 20000.0;
+    if (posc->o2freq > MX_FREQ)
+        posc->o2freq = MX_FREQ;
 
     // Valid frequency.  Recompute phasestep
     posc->o2phasestep = posc->o2freq / SRATE;
@@ -795,8 +849,8 @@ int set_vibfreq (
     posc = (struct VOICE *) pr;
     if (posc->vibfreq < 0.0099)
         posc->vibfreq = 0.01;
-    if (posc->vibfreq > 20000.1)
-        posc->vibfreq = 20000.0;
+    if (posc->vibfreq > MX_FREQ)
+        posc->vibfreq = MX_FREQ;
 
     // Set vibphasestep based on the frequncy
     // Use float to prevent integer overflow
@@ -816,8 +870,8 @@ int set_tremfreq (
     posc = (struct VOICE *) pr;
     if (posc->tremfreq < 0.0099)
         posc->tremfreq = 0.01;
-    if (posc->tremfreq > 20000.1)
-        posc->tremfreq = 20000.0;
+    if (posc->tremfreq > MX_FREQ)
+        posc->tremfreq = MX_FREQ;
 
     // Set tremphasestep based on the frequncy
     // Use float to prevent integer overflow
@@ -891,7 +945,7 @@ int get_o2freq (
 
 /***************************************************************
  * set_glidefreq(): - Validate a new oscillator value for
- * glidefrequency.  Valid values are in the range of 0.001 to 20000
+ * glidefrequency.  Valid values are in the range of 0.001 to MX_FREQ
  * return 1 if error and 0 if valid
  * 
  * Output:       0 if valid
@@ -911,8 +965,8 @@ int set_glidefreq (
     // Comparing floats is not exactly _exact_
     if (posc->glidefreq < 0.0099)
         posc->glidefreq = 0.01;
-    if (posc->glidefreq > 20000.1)
-        posc->glidefreq = 20000.0;
+    if (posc->glidefreq > MX_FREQ)
+        posc->glidefreq = MX_FREQ;
     return 0;
 }
 
@@ -1001,4 +1055,101 @@ int set_vstate (
 
     return 0;
 }
+
+
+/***************************************************************
+ * set_flttype(): - Validate and limit the parameters for a filter
+ * and compute the filter parameters.
+ * We do all filter processing here even though, logically, we should
+ * have callbacks for Q, rolloff, and frequencies.
+ * 
+ * Output:       0 if valid
+ * Effects:      filter parameters
+ ***************************************************************/
+int set_flttype (
+    char *tbl,          // "voices"
+    char *column,       // "flttype
+    char *SQL,          // UI command that changed glidefreq
+    void *pr,           // pointer to the new row
+    int row_num,        // zero index of row in table
+    void *poldrow)      // row before any updates
+{
+    float  d, g;                     // to simplify coefficient calculations
+    struct VOICE *pvoc;
+
+    pvoc = (struct VOICE *) pr;
+    // Comparing floats is not exactly _exact_
+    if (pvoc->fltf1 < 1)             // validate/limit cutoff frequency
+        pvoc->fltf1 = 1;
+    else if (pvoc->fltf1 > 20000)
+        pvoc->fltf1 = 20000;
+    if (pvoc->fltf2 < 1)
+        pvoc->fltf2 = 1;
+    else if (pvoc->fltf2 > 20000)
+        pvoc->fltf2 = 20000;
+    if (pvoc->fltq < 0.1)          // validate/limit filter Q factor
+        pvoc->fltq = 0.1;
+    else if (pvoc->fltq > 25.0)
+        pvoc->fltq = 25.0;
+    if (pvoc->fltrolloff < 6)       // validate/limit filter rolloff
+        pvoc->fltrolloff = 6;
+    else if (pvoc->fltrolloff > 12)
+        pvoc->fltrolloff = 12;
+    pvoc->fltrolloff = 6 * (pvoc->fltrolloff / 6);  // forces value to 6 or 12
+
+    // Just return if off
+    if (pvoc->flttype == FILT_OFF)
+        return 0;
+
+    // Computer the digital filter coefficients based on type, freq, rolloff, and Q
+    // Filter #1 is low pass for low-pass and band-stop filters.  
+    g = tan(M_PI * pvoc->fltf1 / (float) SRATE);
+    d = (pvoc->fltq * g * g) + g + pvoc->fltq;
+    if ((pvoc->flttype == FILT_LOW) || (pvoc->flttype == FILT_STOP)) {
+        pvoc->flt1b0 = pvoc->fltq * g * g / d;
+        pvoc->flt1b1 = 2 * pvoc->flt1b0;
+        pvoc->flt1b2 = pvoc->flt1b0;
+        pvoc->flt1a1 = 2 * pvoc->fltq * ((g * g) -1) / d;
+        pvoc->flt1a2 = ((pvoc->fltq * g * g) - g + pvoc->fltq) / d;
+    }
+    else {
+        // filter # 1 is high pass
+        pvoc->flt1b0 = pvoc->fltq / d;
+        pvoc->flt1b1 = -2 * pvoc->flt1b0;
+        pvoc->flt1b2 = pvoc->flt1b0;
+        pvoc->flt1a1 = 2 * pvoc->fltq * ((g * g) -1) / d;
+        pvoc->flt1a2 = ((pvoc->fltq * g * g) - g + pvoc->fltq) / d;
+    }
+    // Filter #2 is identical to filter #1 for 12 dB low and high pass filters
+    if (((pvoc->flttype == FILT_LOW) || (pvoc->flttype == FILT_HIGH)) && (pvoc->fltrolloff == 12)) {
+        pvoc->fltf2 = pvoc->fltf1;
+        pvoc->flt2b0 = pvoc->flt1b0;
+        pvoc->flt2b1 = pvoc->flt1b1;
+        pvoc->flt2b2 = pvoc->flt1b2;
+        pvoc->flt2a1 = pvoc->flt1a1;
+        pvoc->flt2a2 = pvoc->flt1a2;
+    }
+    // Filter #2 is low pass for band pass, and high pass for band-stop.
+    else if (pvoc->flttype == FILT_BAND) {
+        g = tan(M_PI * pvoc->fltf2 / (float) SRATE);
+        d = (pvoc->fltq * g * g) + g + pvoc->fltq;
+        pvoc->flt2b0 = pvoc->fltq * g * g / d;
+        pvoc->flt2b1 = 2 * pvoc->flt2b0;
+        pvoc->flt2b2 = pvoc->flt2b0;
+        pvoc->flt2a1 = 2 * pvoc->fltq * ((g * g) -1) / d;
+        pvoc->flt2a2 = ((pvoc->fltq * g * g) - g + pvoc->fltq) / d;
+    }
+    else if (pvoc->flttype == FILT_STOP) {
+        g = tan(M_PI * pvoc->fltf2 / (float) SRATE);
+        d = (pvoc->fltq * g * g) + g + pvoc->fltq;
+        pvoc->flt2b0 = pvoc->fltq / d;
+        pvoc->flt2b1 = -2 * pvoc->flt2b0;
+        pvoc->flt2b2 = pvoc->flt2b0;
+        pvoc->flt2a1 = 2 * pvoc->fltq * ((g * g) -1) / d;
+        pvoc->flt2a2 = ((pvoc->fltq * g * g) - g + pvoc->fltq) / d;
+    }
+
+    return 0;
+}
+
 

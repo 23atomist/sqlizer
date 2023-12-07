@@ -43,7 +43,7 @@
     $command = "$command step0time, step1time, step2time, step3time, step4time,";
     $command = "$command step5time, step6time, step7time, step0gain, step1gain,";
     $command = "$command step2gain, step3gain, step4gain, step5gain, step6gain,";
-    $command = "$command step7gain";
+    $command = "$command step7gain, flttype, fltfreq1, fltfreq2, fltrolloff, fltQ ";
     $command = "$command FROM voices WHERE idx=$vidx";
     $r1 = pg_exec($c1, $command);
     if ($r1 == "") { 
@@ -100,83 +100,177 @@
     $step5gain = pg_result($r1, 0, 37);
     $step6gain = pg_result($r1, 0, 38);
     $step7gain = pg_result($r1, 0, 39);
-
+    $flttype    = pg_result($r1, 0, 40);
+    $fltfreq1   = pg_result($r1, 0, 41);
+    $fltfreq2   = pg_result($r1, 0, 42);
+    $fltrolloff = pg_result($r1, 0, 43);
+    $fltQ       = pg_result($r1, 0, 44);
     // Give URL for form processing 
     print("<form method=\"post\" action=voiceupdate.php>\n");
-    print("<input type=\"hidden\" name=\"vidx\" value=\"$vidx\"></p>\n");
+    print("<input type=\"hidden\" name=\"vidx\" value=\"$vidx\">\n");
 
-    // Table for oscillator #1
-    print("<p><table border=0 cellpadding=4>\n");
-    print("<tr><th colspan=5>Oscillator #1</th></tr>\n");
-    print("<tr><th>Waveform</th><th>Frequency</th><th>Symmetry</th>");
+    // Table for oscillators
+    print("<p><table border=1 cellpadding=4>\n");
+    print("<tr><th colspan=7>Oscillators</th></tr>\n");
+    print("<tr><th>State/Mixing</th><th>Oscillator</th><th>Waveform</th><th>Frequency</th><th>Symmetry</th>");
     print("<th>Phase Offset</th><th>Gain</th></tr>\n");
-    print("<tr><td><select name=o1type required>\n");
-    print("<option value=1>Sine</option><option value=2>Square</option>");
-    print("<option value=3>Triangle</option><option value=4>Noise</option></select></td>\n");
+    print("<tr><td><select name=vstate required>\n");
+    if ($vstate == 0)
+      print(" <option value=0 selected>Off</option>\n");
+    else
+      print(" <option value=0>Off</option>\n");
+    if ($vstate == 1)
+      print(" <option value=1 selected>In Use</option>\n");
+    else
+      print(" <option value=1>In Use</option>\n");
+    if ($vstate == 2)
+      print(" <option value=2 selected>On</option>\n");
+    else
+      print(" <option value=2>On</option>\n");
+    if ($vstate == 3)
+      print(" <option value=3 selected>Sustain</option></select></td>\n");
+    else
+      print(" <option value=3>Sustain</option></select></td>\n");
+    print("<td>Oscillator #1</td><td><select name=o1type required>\n");
+    if ($o1type == 1)
+      print("<option value=1 selected>Sine</option>");
+    else
+      print("<option value=1>Sine</option>\n");
+    if ($o1type == 2)
+      print("<option value=2 selected>Square</option>");
+    else
+      print("<option value=2>Square</option>\n");
+    if ($o1type == 3)
+      print("<option value=3 selected>Triangle</option>");
+    else
+      print("<option value=3>Triangle</option>\n");
+    if ($o1type == 4)
+      print("<option value=4 selected>Noise</option></select></td>");
+    else
+      print("<option value=4>Noise</option></select></td>\n");
     print("<td><input name=\"o1freq\" size=9 value=\"$o1freq\"></td>\n");
     print("<td><input name=\"o1symmetry\" size=9 value=\"$o1symmetry\"></td>\n");
     print("<td><input name=\"o1phaseoffset\" size=11 value=\"$o1phaseoffset\"></td>\n");
     print("<td><input name=\"o1gain\" size=8 value=\"$o1gain\"></td></tr>\n");
-    print("</table></p>\n");
-    // Table for oscillator #2
-    print("<p><table border=0 cellpadding=4>\n");
-    print("<tr><th colspan=5>Oscillator #2</th></tr>\n");
-    print("<tr><th>Waveform</th><th>Frequency</th><th>Symmetry</th>");
-    print("<th>Phase Offset</th><th>Gain</th><th>Mix Mode</th></tr>\n");
-    print("<tr><td><select name=o2type required><option value=0>Off</option>\n");
-    print("<option value=1>Sine</option><option value=2>Square</option>");
-    print("<option value=3>Triangle</option><option value=4>Noise</option></select></td>\n");
+    print("<tr><td><select name=mixmode required>\n");
+    if ($mixmode == 0)
+      print("<option value=0 selected>None</option>");
+    else
+      print("<option value=0>None</option>");
+    if ($mixmode == 1)
+      print("<option value=1 selected>Sum</option>");
+    else
+      print("<option value=1>Sum</option>");
+    if ($mixmode == 2)
+      print("<option value=2 selected>AM</option>");
+    else
+      print("<option value=2>AM</option>");
+    if ($mixmode == 3)
+      print("<option value=3 selected>FM</option>");
+    else
+      print("<option value=3>FM</option>");
+    if ($mixmode == 4)
+      print("<option value=4 selected>Ring</option>\n");
+    else
+      print("<option value=4>Ring</option>\n");
+    if ($mixmode == 5)
+      print("<option value=5 selected>HardSync</option></select></td>\n");
+    else
+      print("<option value=5>HardSync</option></select></td>\n");
+    print("<td>Oscillator #2</td><td><select name=o2type required>\n");
+    if ($o2type == 0)
+      print("<option value=0 selected>Off</option>");
+    else
+      print("<option value=0>Off</option>\n");
+    if ($o2type == 1)
+      print("<option value=1 selected>Sine</option>");
+    else
+      print("<option value=1>Sine</option>\n");
+    if ($o2type == 2)
+      print("<option value=2 selected>Square</option>");
+    else
+      print("<option value=2>Square</option>\n");
+    if ($o2type == 3)
+      print("<option value=3 selected>Triangle</option>");
+    else
+      print("<option value=3>Triangle</option>\n");
+    if ($o2type == 4)
+      print("<option value=4 selected>Noise</option></select></td>");
+    else
+      print("<option value=4>Noise</option></select></td>\n");
     print("<td><input name=\"o2freq\" size=9 value=\"$o2freq\"></td>\n");
     print("<td><input name=\"o2symmetry\" size=9 value=\"$o2symmetry\"></td>\n");
     print("<td><input name=\"o2phaseoffset\" size=11 value=\"$o2phaseoffset\"></td>\n");
-    print("<td><input name=\"o2gain\" size=8 value=\"$o2gain\"></td>\n");
-    print("<td><select name=mixmode required>\n");
-    print("<option value=0>None</option><option value=1>Sum</option><option value=2>AM</option>");
-    print("<option value=3>FM</option><option value=4>Ring</option>\n");
-    print("<option value=5>HardSync</option></select></td>\n");
+    print("<td><input name=\"o2gain\" size=8 value=\"$o2gain\"></td></tr>\n");
     print("</table></p>\n");
-    // Table for vibrato
+    print("<p>&nbsp;</p>\n");
+
+    // Table for vibrato / tremolo / glide
+    print("<p><table border=1 cellpadding=4><tr><td>\n");
     print("<p><table border=0 cellpadding=4>\n");
-    print("<tr><th colspan=5>Vibrato</th></tr>\n");
-    print("<tr><th>Waveform</th><th>Frequency</th><th>Symmetry</th>");
+    print("<tr><th colspan=6>Vibrato / Tremolo</th></tr>\n");
+    print("<tr><th>Oscillator</th><th>Waveform</th><th>Frequency</th><th>Symmetry</th>");
     print("<th>Phase Offset</th><th>Depth</th></tr>\n");
-    print("<tr><td><select name=vibtype required><option value=0>Off</option>\n");
-    print("<option value=1>Sine</option><option value=2>Square</option>");
-    print("<option value=3>Triangle</option><option value=4>Noise</option></select></td>\n");
-    print("<td><input name=\"vibfreq\" size=9 value=\"$vibfreq\"></p>\n");
-    print("<td><input name=\"vibsymmetry\" size=9 value=\"$vibsymmetry\"></p>\n");
-    print("<td><input name=\"vibphaseoffset\" size=11 value=\"$vibphaseoffset\"></p>\n");
-    print("<td><input name=\"vibdepth\" size=8 value=\"$vibdepth\"></p>\n");
+    print("<tr><td>Vibrato</td><td><select name=vibtype required>");
+    if ($vibtype == 0)
+      print(" <option value=0 selected>Off</option>\n");
+    else
+      print(" <option value=0>Off</option>\n");
+    if ($vibtype == 1)
+      print(" <option value=1 selected>Sine</option>\n");
+    else
+      print(" <option value=1>Sine</option>\n");
+    if ($vibtype == 2)
+      print(" <option value=2 selected>Square</option>");
+    else
+      print(" <option value=2>Square</option>");
+    if ($vibtype == 3)
+      print(" <option value=3 selected>Triangle</option>\n");
+    else
+      print(" <option value=3>Triangle</option>\n");
+    if ($vibtype == 4)
+      print(" <option value=4 selected>Noise</option></select></td>\n");
+    else
+      print("<option value=4>Noise</option></select></td>\n");
+    print("<td><input name=\"vibfreq\" size=9 value=\"$vibfreq\"></td>\n");
+    print("<td><input name=\"vibsymmetry\" size=9 value=\"$vibsymmetry\"></td>\n");
+    print("<td><input name=\"vibphaseoffset\" size=11 value=\"$vibphaseoffset\"></td>\n");
+    print("<td><input name=\"vibdepth\" size=8 value=\"$vibdepth\"></td></tr>\n");
+    print("<tr><td>Tremolo</td><td><select name=tremtype required>\n");
+    if ($tremtype == 0)
+      print("<option value=0 selected>Off</option>\n");
+    else
+      print("<option value=0>Off</option>\n");
+    if ($tremtype == 1)
+      print("<option value=1 selected>Sine</option>\n");
+    else
+      print("<option value=1>Sine</option>\n");
+    if ($tremtype == 2)
+      print("<option value=2 selected>Square</option>\n");
+    else
+      print("<option value=2>Square</option>\n");
+    if ($tremtype == 3)
+      print("<option value=3 selected>Triangle</option>\n");
+    else
+      print("<option value=3>Triangle</option>\n");
+    if ($tremtype == 4)
+      print("<option value=4 selected>Noise</option></select></td>\n");
+    else
+      print("<option value=4>Noise</option></select></td>\n");
+    print("<td><input name=\"tremfreq\" size=9 value=\"$tremfreq\"></td>\n");
+    print("<td><input name=\"tremsymmetry\" size=9 value=\"$tremsymmetry\"></td>\n");
+    print("<td><input name=\"tremphaseoffset\" size=11 value=\"$tremphaseoffset\"></td>\n");
+    print("<td><input name=\"tremdepth\" size=8 value=\"$tremdepth\"></td></tr>\n");
     print("</table></p>\n");
-    // Table for glide and voice state
-    print("<p><table border=0 cellpadding=6><tr></tr><tr><td>\n");
-     print(" <p><table border=0 cellpadding=4>\n");
-     print(" <tr><th colspan=2>Glide</th></tr>\n");
-     print(" <tr><th>Frequency</th><th>Milliseconds</th></tr>");
-     print(" <td><input name=\"glidefreq\" size=9 value=\"$glidefreq\"></td></p>\n");
-     print(" <td><input name=\"glidems\" size=9 value=\"$glidems\"></td></tr></p>\n");
-     print(" </table></p>\n");
-    print("</td><td valign=\"top\">\n");
-     print(" <p><table border=0 cellpadding=4>\n");
-     print(" <tr><th> </th></tr><tr><th>Voice State</th></tr>\n");
-     print(" <tr><td><select name=vstate required><option value=0>Off</option>\n");
-     print(" <option value=1>In Use</option><option value=2>On</option>");
-     print(" <option value=3>Sustain</option></td></select>\n");
-     print(" </table></p>\n");
-    print("</td></tr></table>\n");
-    // Table for tremolo
-    print("<p><table border=0 cellpadding=4>\n");
-    print("<tr><th colspan=5>Tremolo</th></tr>\n");
-    print("<tr><th>Waveform</th><th>Frequency</th><th>Symmetry</th>");
-    print("<th>Phase Offset</th><th>Depth</th></tr>\n");
-    print("<tr><td><select name=tremtype required><option value=0>Off</option>\n");
-    print("<option value=1>Sine</option><option value=2>Square</option>");
-    print("<option value=3>Triangle</option><option value=4>Noise</option></select></td>\n");
-    print("<td><input name=\"tremfreq\" size=9 value=\"$tremfreq\">\n");
-    print("<td><input name=\"tremsymmetry\" size=9 value=\"$tremsymmetry\">\n");
-    print("<td><input name=\"tremphaseoffset\" size=11 value=\"$tremphaseoffset\">\n");
-    print("<td><input name=\"tremdepth\" size=8 value=\"$tremdepth\">\n");
-    print("</table></p>\n");
+    print("</td><td><table border=0 cellpadding=4>\n");
+    print(" <tr><th colspan=2>Glide</th></tr>\n");
+    print(" <tr><th>Frequency</th><th>Milliseconds</th></tr>\n");
+    print(" <tr><td><input name=\"glidefreq\" size=9 value=\"$glidefreq\"></td>\n");
+    print(" <td><input name=\"glidems\" size=9 value=\"$glidems\"></td></tr>\n");
+    print(" </table></td>\n");
+    print("</tr></table>\n");
+
+
     // Table for ADSR envelope
     print("<p>&nbsp;</p><p><table border=1 cellpadding=0>\n");
     print("<tr><th colspan=9>ADSR Envelope (steptime=60000 for sustain)</th></tr>\n");
@@ -202,9 +296,48 @@
     print("<td><input name=\"step7gain\" size=6 value=\"$step7gain\"></tr>\n");
     print("</table></p>\n");
 
+    // Table for filters
+    print("<p>&nbsp;</p>\n");
+    print("<p><table border=1 cellpadding=4>\n");
+    print("<tr><th colspan=3>Output Filter</th></tr>\n");
+    print("<tr><th>Type</th><th>Q</th><th>Rolloff / Frequencies</th></tr>\n");
+    if ($flttype == 0)
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"0\" checked> Off</td>\n");
+    else
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"0\"> Off</td>\n");
+    print("<td colspan=2> </td></tr>\n");
+    if ($flttype == 1)
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"1\" checked> Low Pass</td>\n");
+    else
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"1\"> Low Pass</td>\n");
+    print("<td rowspan=4><input name=\"fltQ\" size=8 value=\"$fltQ\"></td>\n");
+    print("<td rowspan=2>Rolloff: <select name=fltrolloff required>\n");
+    if ($fltrolloff == 6)
+      print("<option value=6 selected>6 dB</option>\n");
+    else
+      print("<option value=6>6 dB</option>\n");
+    if ($fltrolloff == 12)
+      print("<option value=12 selected>12 dB</option></select><br>\n");
+    else
+      print("<option value=12>12 dB</option></select><br>\n");
+    print("Freq1: <input name=\"fltfreq1\" size=9 value=\"$fltfreq1\"><br></td></tr>\n");
+    if ($flttype == 2)
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"2\" checked> High Pass</td>\n");
+    else
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"2\"> High Pass</td>\n");
+    if ($flttype == 3)
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"3\" checked> Band Pass</td>\n");
+    else
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"3\"> Band Pass</td>\n");
+    print("<td rowspan=2>Freq2: <input name=\"fltfreq2\" size=9 value=\"$fltfreq2\"><br></td></tr>\n");
+    if ($flttype == 4)
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"4\" checked> Band Stop</td>\n");
+    else
+      print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"4\"> Band Stop</td>\n");
+    print("</table></p>\n");
 
     print("<p>&nbsp;</p>\n");
-    print("<input type=\"submit\" value=\"Update Voices\"></p>\n");
+    print("<input type=\"submit\" value=\"Update Voices\">\n");
     print("</form>\n");
 
     // free the result and close the connection 

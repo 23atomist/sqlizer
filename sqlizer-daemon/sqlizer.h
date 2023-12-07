@@ -18,6 +18,8 @@
 
 // Sample rate.
 #define SRATE 44100.0
+// Max audio frequency
+#define MX_FREQ 9000.0
 
 
 
@@ -47,7 +49,7 @@
 #define FILT_LOW           1       // voice filter is low pass
 #define FILT_HIGH          2       // voice filter is high pass
 #define FILT_BAND          3       // voice filter is band pass
-#define FILT_NOTCH         4       // voice filter is notch
+#define FILT_STOP          4       // voice filter is notch
 #define MXADSRSTEP         7       // 8 ADSR steps in range of 0 to 7
 #define VOICE_COUNT        20
 #define SUSTAINVALUE       60000   // sustain if step time is one minute
@@ -131,6 +133,34 @@ struct VOICE
     float    step5gain;        // gain (0 to 1) at end of step. 0 to end
     float    step6gain;        // gain (0 to 1) at end of step. 0 to end
     float    step7gain;        // gain (0 to 1) at end of step. 0 to end
+    // The user can specify the type of filter, the rolloff, the Q, and
+    // the cutoff frequencies.  Invisible to the user are the parameters
+    // for the two second order digital filters.
+    int      flttype;          // none, low, high, band, notch
+    float    fltq;             // f1 Q factor
+    int      fltrolloff;       // filter #1 rolloff in dB
+    int      fltf1;            // f1 frequency
+    float    flt1b0;           // filter parameter
+    float    flt1b1;           // filter parameter
+    float    flt1b2;           // filter parameter
+    float    flt1a1;           // filter parameter
+    float    flt1a2;           // filter parameter
+    float    flt1in1;          // input delayed by one
+    float    flt1in2;          // input delayed by two
+    float    flt1out0;         // filter output with no delay
+    float    flt1out1;         // output delayed by one
+    float    flt1out2;         // output delayed by two
+    int      fltf2;            // f2 frequency
+    float    flt2b0;           // filter parameter
+    float    flt2b1;           // filter parameter
+    float    flt2b2;           // filter parameter
+    float    flt2a1;           // filter parameter
+    float    flt2a2;           // filter parameter
+    float    flt2in1;          // input delayed by one
+    float    flt2in2;          // input delayed by two
+    float    flt2out0;         // filter output with no delay
+    float    flt2out1;         // output delayed by one
+    float    flt2out2;         // output delayed by two
 
     float    outputgain;       // final gain applied after ADSR and filter
     // outputs

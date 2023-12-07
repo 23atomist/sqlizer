@@ -117,7 +117,7 @@ void init_synth()
         voices[i].q = 1.0;
         voices[i].adsridx = 0;
         voices[i].step0time = 1;
-        voices[i].step1time = 1;
+        voices[i].step1time = 60000;
         voices[i].step2time = 1;
         voices[i].step3time = 1;
         voices[i].step4time = 1;
@@ -132,6 +132,32 @@ void init_synth()
         voices[i].step5gain = 1.0;
         voices[i].step6gain = 1.0;
         voices[i].step7gain = 1.0;
+        voices[i].flttype  = FILT_OFF;
+        voices[i].fltq = 1.0;
+        voices[i].fltrolloff = 6;
+        voices[i].fltf1 = 440;
+        voices[i].flt1b0 = 1.0;
+        voices[i].flt1b1 = 0.0;
+        voices[i].flt1b2 = 0.0;
+        voices[i].flt1a1 = 0.0;
+        voices[i].flt1a2 = 0.0;
+        voices[i].flt1in1 = 0.0;
+        voices[i].flt1in2 = 0.0;
+        voices[i].flt1out0 = 0.0;
+        voices[i].flt1out1 = 0.0;
+        voices[i].flt1out2 = 0.0;
+        voices[i].fltf2 = 440;
+        voices[i].flt2b0 = 1.0;
+        voices[i].flt2b1 = 0.0;
+        voices[i].flt2b2 = 0.0;
+        voices[i].flt2a1 = 0.0;
+        voices[i].flt2a2 = 0.0;
+        voices[i].flt2in1 = 0.0;
+        voices[i].flt2in2 = 0.0;
+        voices[i].flt2out0 = 0.0;
+        voices[i].flt2out1 = 0.0;
+        voices[i].flt2out2 = 0.0;
+
         voices[i].sync = 0;
     }
 
@@ -182,7 +208,6 @@ void do_synth()
             sampleoutput += voices[v].voiceout;
         }
 
-
         // send to audio output
         static int val = 0;
         char x[2];
@@ -190,17 +215,6 @@ void do_synth()
         x[1] = val & 0x0000ff;
         x[0] = (val >> 8) & 0x0000ff;
         write(1, x, 2);
-static int count = 0;
-if ((voices[0].vstate !=0) && (voices[0].idx == 0)) {
- //printf("%2d %7.5f %7.5f %7.5f %7.5f %7.5f\n",count,voices[0].o2phaseacc,voices[0].sync,voices[0].o2phasestep,voices[0].tremout, voices[0].voiceout);
- if (count == 100) {
-    count = 0;
-    //voices[0].vstate = 0;
-    //printf("\n");
- }
- else
-    count++;
-}
     }
 
     return;
@@ -236,6 +250,7 @@ void do_voice(
     float   targetgain; // Target gain in current ADSR step
     int     steptime;  // duration of this step in milliseconds
     int     ontimems;  // pvoc->ontime in ms instead of sample ticks
+    float   flt2input; // filter #2 input == Filter #1 out or same input as #1
 
     // update the white noise generator whether or not we use this voice
     if (whitenoise & 0x80000000)
@@ -538,18 +553,56 @@ void do_voice(
         }
         else   // should not get here
             pvoc->tremout = 0.0;
+
         // apply tremolo up to depth
         pvoc->voiceout = pvoc->voiceout * (1.0 - (pvoc->tremdepth * pvoc->tremout));
     }
 
-    // At this point a new voice value has been computed.  Pass it through
-    // the ADSR amplitude envelope and the filter.
-    // librta does not do tables-of-tables so we compute the step time and gain
-    // using the index multiplied by the sizeof int or float. 
+    // Voiceout now has the new generated value. Pass it through the filters
+    // and the ADSR amplitude envelope.
+    //  The filter is second order with both poles and zeros. This filter is
+    // of Type I so has separate stores for past inputs and past outputs.
+    if (pvoc->flttype != FILT_OFF) {
+        // Filter #1 always runs if filters are enabled
+        pvoc->flt1out0 = (pvoc->flt1b0 * pvoc->voiceout) +
+                         (pvoc->flt1b1 * pvoc->flt1in1) +
+                         (pvoc->flt1b2 * pvoc->flt1in2) +
+                         (-pvoc->flt1a1 * pvoc->flt1out1) +
+                         (-pvoc->flt1a2 * pvoc->flt1out2);
+        pvoc->flt1out2 = pvoc->flt1out1;
+        pvoc->flt1out1 = pvoc->flt1out0;
+        pvoc->flt1in2  = pvoc->flt1in1;
+        pvoc->flt1in1  = pvoc->voiceout;
+        // Filter #2 runs if 12 dB or band-pass or band-stop filters
+        if ((pvoc->fltrolloff == 12) || (pvoc->flttype == FILT_BAND) || (pvoc->flttype == FILT_STOP)) {
+            // The input to the second filter is the same as filter #1's input if
+            // the type is STOP.  Else it is the output of filter #1.
+            flt2input = (pvoc->flttype == FILT_STOP) ? pvoc->voiceout : pvoc->flt1out0;
+            pvoc->flt2out0 = (pvoc->flt2b0 * flt2input) +
+                             (pvoc->flt2b1 * pvoc->flt2in1) +
+                             (pvoc->flt2b2 * pvoc->flt2in2) +
+                             (-pvoc->flt2a1 * pvoc->flt2out1) +
+                             (-pvoc->flt2a2 * pvoc->flt2out2);
+            pvoc->flt2out2 = pvoc->flt2out1;
+            pvoc->flt2out1 = pvoc->flt2out0;
+            pvoc->flt2in2  = pvoc->flt2in1;
+            pvoc->flt2in1  = flt2input;
+        }
+        // Output of the filters is filter #2's output for low, high, and band
+        // pass filters, and the average of both filters for band reject
+        if (pvoc->flttype == FILT_STOP)
+            pvoc->voiceout = (pvoc->flt1out0 + pvoc->flt2out0) / 2.0;
+        else
+            pvoc->voiceout = pvoc->flt2out0;
+    }
+
+    // The ADSR envelope has eight steps.  Librta does not do tables-of-tables
+    // so we compute the step time and gain using the index multiplied by the
+    // sizeof int or float. 
     //  Compute the current gain as a linear interpolation of the previous gain
     // up (down) to this step's target gain.  Base this on the fraction of ontime
     // divided by this step's steptime.
-    //  Get the previous gain
+    //  Start by getting the previous gain.
     if (pvoc->adsridx == 0) {
         prevgain = 0.0;
     } else {

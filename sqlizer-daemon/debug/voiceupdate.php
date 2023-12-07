@@ -61,8 +61,5 @@
     pg_freeresult($r1);
     pg_close($c1);
 ?>
-    <script type="text/javascript">
-        window.location.href = "javascript:window.history.back();";
-    </script>
 </body>
 </html>
