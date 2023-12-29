@@ -43,7 +43,8 @@
     $command = "$command step0time, step1time, step2time, step3time, step4time,";
     $command = "$command step5time, step6time, step7time, step0gain, step1gain,";
     $command = "$command step2gain, step3gain, step4gain, step5gain, step6gain,";
-    $command = "$command step7gain, flttype, fltfreq1, fltfreq2, fltrolloff, fltQ ";
+    $command = "$command step7gain, flttype, fltfreq1, fltfreq2, fltrolloff, fltQ,";
+    $command = "$command outputclipping, outputgain, outputchannel ";
     $command = "$command FROM voices WHERE idx=$vidx";
     $r1 = pg_exec($c1, $command);
     if ($r1 == "") { 
@@ -105,6 +106,9 @@
     $fltfreq2   = pg_result($r1, 0, 42);
     $fltrolloff = pg_result($r1, 0, 43);
     $fltQ       = pg_result($r1, 0, 44);
+    $outclip    = pg_result($r1, 0, 45);
+    $outgain    = pg_result($r1, 0, 46);
+    $outchan    = pg_result($r1, 0, 47);
     // Give URL for form processing 
     print("<form method=\"post\" action=voiceupdate.php>\n");
     print("<input type=\"hidden\" name=\"vidx\" value=\"$vidx\">\n");
@@ -296,8 +300,12 @@
     print("<td><input name=\"step7gain\" size=6 value=\"$step7gain\"></tr>\n");
     print("</table></p>\n");
 
-    // Table for filters
+    // Layout table for filters and output processing
     print("<p>&nbsp;</p>\n");
+    print("<p><table border=0 cellpadding=8>\n");
+    print("<tr><td>\n");
+ 
+    // Table for filters
     print("<p><table border=1 cellpadding=4>\n");
     print("<tr><th colspan=3>Output Filter</th></tr>\n");
     print("<tr><th>Type</th><th>Q</th><th>Rolloff / Frequencies</th></tr>\n");
@@ -335,6 +343,38 @@
     else
       print("<tr><td><input type=\"radio\" name=\"flttype\" value=\"4\"> Band Stop</td>\n");
     print("</table></p>\n");
+    print("</td><td>\n");
+
+    // Table for output processing
+    print("<p><table border=1 cellpadding=4>\n");
+    print("<tr><th colspan=2>Output Processing</th></tr>\n");
+    print("<tr><th>Param</th><th>Value</th></tr>\n");
+    print("<tr><td>Clipping</td><td><select name=outputclipping required>");
+    if ($outclip == 0)
+      print(" <option value=0 selected>Off</option>");
+    else
+      print(" <option value=0>Off</option>");
+    if ($outclip == 1)
+      print(" <option value=1 selected>On</option>");
+    else
+      print(" <option value=1>On</option>");
+    print("</td></tr>\n");
+    print("<td>Output Gain</td><td><input name=\"outputgain\" size=8 value=\"$outgain\"></td></tr>\n");
+    print("<tr><td>Output Channels</td><td>");
+    if ($outchan == 1)
+      print("<input type=\"radio\" name=\"outputchannel\" value=\"1\" checked> Left");
+    else
+      print("<input type=\"radio\" name=\"outputchannel\" value=\"1\"> Left");
+    if ($outchan == 2)
+      print("<input type=\"radio\" name=\"outputchannel\" value=\"2\" checked> Right");
+    else
+      print("<input type=\"radio\" name=\"outputchannel\" value=\"2\"> Right");
+    if ($outchan == 3)
+      print("<input type=\"radio\" name=\"outputchannel\" value=\"3\" checked> Both</td><tr>\n");
+    else
+      print("<input type=\"radio\" name=\"outputchannel\" value=\"3\"> Both</td><tr>\n");
+    print("</table></p>\n");
+    print("</td></tr></table>\n");
 
     print("<p>&nbsp;</p>\n");
     print("<input type=\"submit\" value=\"Update Voices\">\n");

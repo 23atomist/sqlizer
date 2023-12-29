@@ -51,6 +51,9 @@
 #define FILT_BAND          3       // voice filter is band pass
 #define FILT_STOP          4       // voice filter is notch
 #define MXADSRSTEP         7       // 8 ADSR steps in range of 0 to 7
+#define OUTLEFT            1       // output to left channel (monophonic)
+#define OUTRIGHT           2       // output to right channel
+#define OUTBOTH            3       // send voice output to both channels
 #define VOICE_COUNT        20
 #define SUSTAINVALUE       60000   // sustain if step time is one minute
 
@@ -162,11 +165,12 @@ struct VOICE
     float    flt2out1;         // output delayed by one
     float    flt2out2;         // output delayed by two
 
+    // outputs and output control
+    int      outputclipping;   // 0 for off, 1 for on
     float    outputgain;       // final gain applied after ADSR and filter
-    // outputs
+    int      outputchannel;    // 1,2,3 for left, right, or both
     int      sync;             // ==1 for one sample as output crosses zero.
     float    voiceout;         // intermediate value of voice output
-    int      vout;             // integer version of final voiceout
 };
 
 

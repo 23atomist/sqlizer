@@ -37,10 +37,10 @@
     print("<th>Chord ID</th><th>V state</th>\n");
     print("<th>O1 Type</th><th>O1 Freq</th>\n");
     print("<th>O2 Type</th><th>O2 Freq</th>\n");
-    print("<th>Mix Mode</th></tr>\n");
+    print("<th>Mix Mode</th><th>Output Gain</th><th>Output Channel</th></tr>\n");
 
     // execute query 
-    $command = "SELECT idx,noteid,chordid,vstate,o1type,o1freq,o1type,o2freq,mixmode FROM voices";
+    $command = "SELECT idx,noteid,chordid,vstate,o1type,o1freq,o1type,o2freq,mixmode,outputgain,outputchannel FROM voices";
     $result = pg_exec($conn, $command);
     if ($result == "") { 
         print("<p><font color=\"red\" size=+1>SQL Command failed!</p>");
@@ -58,16 +58,20 @@
         $o2type     = pg_result($result, $row, 6);
         $o2freq     = pg_result($result, $row, 7);
         $mixmode    = pg_result($result, $row, 8);
+        $outgain    = pg_result($result, $row, 9);
+        $outchan    = pg_result($result, $row, 10);
         print("<tr><td><a href=voiceedit.php?voiceidx=$vidx>Edit</a></td>\n");
         print("<td>$vidx</td>\n");
         print("<td>$noteid</td>\n");
         print("<td>$chordid</td>\n");
         print("<td>$vstate</td>\n");
         print("<td>$o1type</td>\n");
-        print("<td>$o1freq</td>\n");
+        printf("<td>%9.4f</td>\n", $o1freq);
         print("<td>$o2type</td>\n");
-        print("<td>$o2freq</td>\n");
+        printf("<td>%9.4f</td>\n", $o2freq);
         print("<td>$mixmode</td>\n");
+        printf("<td>%5.4f</td>\n", $outgain);
+        printf("<td>%d</td>\n", $outchan);
         print("</tr>\n");
     }
 

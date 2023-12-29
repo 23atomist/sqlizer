@@ -111,7 +111,7 @@ RTA_COLDEF voicecols[] = {
         0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         (int (*)()) 0,      /* called after write */
-        "The number of milliseconds the tone has been on.  Set to zero at tone start."},
+        "The number of samples the tone has been on.  Set to zero at tone start."},
     {
         "voices",           /* the table name */
         "o1type",           /* the column name */
@@ -659,6 +659,16 @@ AM o1 by o2, FM o1 by o2, ring, hardsync of o1 by o2."},
         "The Q for the output filter in range of 0.1 to 25."},
     {
         "voices",           /* the table name */
+        "outputclipping",   /* the column name */
+        RTA_FLOAT,          /* it is a float */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, outputclipping), /* location in struct */
+        0,                  /* no flags */
+        (int (*)()) 0,      /* called before read */
+        (int (*)()) 0,      /* called after write */
+        "Set to 1 to limit voice output to range of 1.0 to -1.0.  Set to 0 for no clipping."},
+    {
+        "voices",           /* the table name */
         "outputgain",       /* the column name */
         RTA_FLOAT,          /* it is a float */
         sizeof(float),      /* number of bytes */
@@ -669,15 +679,15 @@ AM o1 by o2, FM o1 by o2, ring, hardsync of o1 by o2."},
         "The gain (attenuation) applied to the final output.  Must be between zero and one."},
     {
         "voices",           /* the table name */
-        "vout",             /* the column name */
-        RTA_INT,            /* it is an integer */
-        sizeof(int),        /* number of bytes */
-        offsetof(struct VOICE, vout), /* location in struct */
-        RTA_READONLY,       /* read only */
+        "outputchannel",    /* the column name */
+        RTA_INT,            /* it is an int */
+        sizeof(float),      /* number of bytes */
+        offsetof(struct VOICE, outputchannel), /* location in struct */
+        0,                  /* no flags */
         (int (*)()) 0,      /* called before read */
         (int (*)()) 0,      /* called after write */
-        "The instantaneous value of the output after being processed by the ADSR\
- envelope and the final output gain. This is a 16 bit signed value."},
+        "Specify the destination channel of this voice as 1 for left only, 2 for\
+ right only, and 3 for output to both left and right."},
 };
 
 /***************************************************************
@@ -1049,7 +1059,6 @@ int set_vstate (
             // can't go past last step.  Turn voice off.
             pvoc->vstate = VSTATE_FREE;
             pvoc->voiceout = 0.0;
-            pvoc->vout = 0;
         }
     }
 

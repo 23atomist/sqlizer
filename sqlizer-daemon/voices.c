@@ -85,7 +85,7 @@ void init_synth()
         voices[i].o1phaseacc = 0.0;
         voices[i].o1symmetry = 0.5;
         voices[i].o1phaseoffset = 0.0;
-        voices[i].o1gain = 0.0;
+        voices[i].o1gain = 0.2;
         voices[i].vibtype = OTYPE_OFF;
         voices[i].vibfreq = 0.0;
         voices[i].vibo1phase = 0.0;
@@ -116,22 +116,22 @@ void init_synth()
         voices[i].filtrolloff = 6;
         voices[i].q = 1.0;
         voices[i].adsridx = 0;
-        voices[i].step0time = 1;
-        voices[i].step1time = 60000;
-        voices[i].step2time = 1;
-        voices[i].step3time = 1;
+        voices[i].step0time = 100;
+        voices[i].step1time = 50;
+        voices[i].step2time = 60000;
+        voices[i].step3time = 1000;
         voices[i].step4time = 1;
         voices[i].step5time = 1;
         voices[i].step6time = 1;
         voices[i].step7time = 1;
         voices[i].step0gain = 1.0;
-        voices[i].step1gain = 1.0;
-        voices[i].step2gain = 1.0;
-        voices[i].step3gain = 1.0;
-        voices[i].step4gain = 1.0;
-        voices[i].step5gain = 1.0;
-        voices[i].step6gain = 1.0;
-        voices[i].step7gain = 1.0;
+        voices[i].step1gain = 0.50;
+        voices[i].step2gain = 0.50;
+        voices[i].step3gain = 0.001;
+        voices[i].step4gain = 0.0;
+        voices[i].step5gain = 0.0;
+        voices[i].step6gain = 0.0;
+        voices[i].step7gain = 0.0;
         voices[i].flttype  = FILT_OFF;
         voices[i].fltq = 1.0;
         voices[i].fltrolloff = 6;
@@ -157,7 +157,10 @@ void init_synth()
         voices[i].flt2out0 = 0.0;
         voices[i].flt2out1 = 0.0;
         voices[i].flt2out2 = 0.0;
-
+        voices[i].sync = 0;
+        voices[i].outputclipping = 1;        // Clipping is on
+        voices[i].outputchannel = OUTBOTH;
+        voices[i].outputgain = 1.0;
         voices[i].sync = 0;
     }
 
@@ -184,7 +187,8 @@ void do_synth()
     int64_t  now;              // now in microseconds since the epoch
     int64_t  dosamples;        // how many sample to add to the output
     int64_t  s, v;             // loop variables for Samples, Voice
-    float    sampleoutput;     // output for one sample
+    float    outputleft;       // left output for one sample
+    float    outputright;      // right output for one sample
 
     // Get "now" in milliseconds since the Epoch
     if (gettimeofday(&tv, 0) < 0) {
@@ -200,18 +204,32 @@ void do_synth()
     oldnow = now;
 
     // for each sample period ...
-    sampleoutput = 0.0;
     for (s = 0; s < dosamples; s++) {
         // process each of the voices
+        outputleft = 0.0;
+        outputright = 0.0;
         for (v = 0; v < VOICE_COUNT; v++) {
             do_voice(v);
-            sampleoutput += voices[v].voiceout;
+            if ((voices[v].outputchannel & 0x01) == 1) // 1 or 3
+                outputleft += voices[v].voiceout;
+            if (voices[v].outputchannel >= 2)        // 2 or 3
+                outputright += voices[v].voiceout;
         }
+
+        // clip outputs
+        if (outputleft > 1.0)
+            outputleft = 1.0;
+        else if (outputleft < -1.0)
+            outputleft = -1.0;
+        if (outputright > 1.0)
+            outputright = 1.0;
+        else if (outputright < -1.0)
+            outputright = -1.0;
 
         // send to audio output
         static int val = 0;
         char x[2];
-        val = (int) (voices[0].voiceout * (float)FULLVOLUME);
+        val = (int) (outputleft * (float)FULLVOLUME);
         x[1] = val & 0x0000ff;
         x[0] = (val >> 8) & 0x0000ff;
         write(1, x, 2);
@@ -588,10 +606,13 @@ void do_voice(
             pvoc->flt2in2  = pvoc->flt2in1;
             pvoc->flt2in1  = flt2input;
         }
+        
         // Output of the filters is filter #2's output for low, high, and band
         // pass filters, and the average of both filters for band reject
         if (pvoc->flttype == FILT_STOP)
             pvoc->voiceout = (pvoc->flt1out0 + pvoc->flt2out0) / 2.0;
+        else if (pvoc->fltrolloff == 6)
+            pvoc->voiceout = pvoc->flt1out0;   // just filter 1 for 6 db rolloff
         else
             pvoc->voiceout = pvoc->flt2out0;
     }
@@ -654,6 +675,16 @@ void do_voice(
             pvoc->ontime++;
         }
     }
+
+    // Output clipping and gain
+    if (pvoc->outputclipping == 1) {
+        if (pvoc->voiceout > 1.0)
+            pvoc->voiceout = 1.0;
+        else if (pvoc->voiceout < -1.0)
+            pvoc->voiceout = -1.0;
+    }
+    pvoc->voiceout = pvoc->voiceout * pvoc->outputgain;
+
     return;
 }
 
