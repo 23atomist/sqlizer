@@ -294,8 +294,8 @@ void handle_ui_request(UI * pui)
     pui->nbytin += ret;
 
     /* The commands are in the buffer. Call the DB to parse and execute them */
+    t = pui->cmdindx;       /* packet in length */
     do {
-        t = pui->cmdindx;       /* packet in length */
         dbstat = rta_dbcommand(pui->cmd, /* packet in */
             &(pui->cmdindx),    /* packet in length */
             &(pui->rsp[MXRSP - pui->rspfree]), /* ptr to out buf */
