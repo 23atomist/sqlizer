@@ -76,11 +76,10 @@ The voices are working but without the filter stage.  Voices have:
 - Vibrato (freq, waveform, symmetry, phase offset, depth)
 - Glide (target frequency, glide duration)
 - Tremolo (freq, waveform, symmetry, phase offset, depth)
-- 8 Step ADSR (step gain, step duration)a
+- 8 Step ADSR (step gain, step duration)
+- Output filters for low-pass, high-pass, band-pass, and band-stop
 
 ## Next steps
-- Add a filter section to the voices
-- Update the table description docs
 - Add the patches table
 - Add a config table for sample rate, channels, and file output
  
